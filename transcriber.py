@@ -1,10 +1,12 @@
 import os
+import shutil
 import subprocess
 import tempfile
 from faster_whisper import WhisperModel
 
-# Use the bundled ffmpeg binary
-FFMPEG_PATH = os.path.join(os.path.dirname(__file__), "ffmpeg")
+# Use bundled ffmpeg if present, otherwise fall back to system ffmpeg
+_bundled = os.path.join(os.path.dirname(__file__), "ffmpeg")
+FFMPEG_PATH = _bundled if os.path.isfile(_bundled) else (shutil.which("ffmpeg") or "ffmpeg")
 
 
 _model = None
