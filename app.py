@@ -20,7 +20,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 CLIENT_ID     = os.getenv("SPOTIPY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
-REDIRECT_URI  = "https://localhost:5001/callback"
+REDIRECT_URI  = os.getenv("REDIRECT_URI", "https://localhost:5001/callback")
 SCOPES        = "user-read-email user-read-private"
 
 
@@ -143,5 +143,7 @@ def analyze():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5001,
-            ssl_context=("localhost.pem", "localhost-key.pem"))
+    port = int(os.getenv("PORT", 5001))
+    cert, key = "localhost.pem", "localhost-key.pem"
+    ssl = (cert, key) if os.path.isfile(cert) else None
+    app.run(debug=False, host="0.0.0.0", port=port, ssl_context=ssl)
