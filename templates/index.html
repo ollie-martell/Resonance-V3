@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resonance</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
+</head>
+<body>
+    <div class="gradient-mesh"></div>
+
+    <div class="container">
+        <header>
+            <div class="brand">
+                <div class="brand-icon">✦</div>
+                <div>
+                    <h1>Resonance</h1>
+                    <p>Upload a video · detect the vibe · find the track</p>
+                </div>
+            </div>
+            <div class="spotify-auth" id="spotifyAuth"></div>
+        </header>
+
+        <div class="upload-zone" id="uploadZone">
+            <div class="icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="6" width="20" height="16" rx="2"/>
+                    <path d="M2 12h20"/>
+                    <path d="M7 6V2"/>
+                    <path d="M12 6V2"/>
+                    <path d="M17 6V2"/>
+                    <path d="M2 9l5-3"/>
+                    <path d="M9 9l5-3"/>
+                    <path d="M16 9l5-3"/>
+                </svg>
+            </div>
+            <h2>Drop your video here</h2>
+            <p>MP4 &nbsp;·&nbsp; up to 500 MB</p>
+            <input type="file" id="fileInput" accept=".mp4,video/mp4">
+            <div class="file-selected" id="fileName"></div>
+        </div>
+
+        <button class="analyze-btn" id="analyzeBtn">✦ &nbsp;Analyze Vibe</button>
+        <div class="error-msg" id="errorMsg"></div>
+
+        <div class="loading" id="loading">
+            <div class="loading-inner">
+                <div class="waveform">
+                    <div class="bar wave-bar-1"></div>
+                    <div class="bar wave-bar-2"></div>
+                    <div class="bar wave-bar-3"></div>
+                    <div class="bar wave-bar-4"></div>
+                    <div class="bar wave-bar-5"></div>
+                    <div class="bar wave-bar-6"></div>
+                    <div class="bar wave-bar-7"></div>
+                    <div class="bar wave-bar-4"></div>
+                    <div class="bar wave-bar-5"></div>
+                    <div class="bar wave-bar-2"></div>
+                    <div class="bar wave-bar-3"></div>
+                    <div class="bar wave-bar-1"></div>
+                    <div class="bar wave-bar-6"></div>
+                </div>
+                <div class="status" id="statusText">Starting...</div>
+                <div class="progress-bar"><div class="progress-fill"></div></div>
+            </div>
+        </div>
+
+        <div class="results" id="results">
+
+            <div class="glass fade-in fade-in-1">
+                <div class="section-label">
+                    <div class="section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.88)" stroke-width="2.2" stroke-linecap="round">
+                            <line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="14" y2="17"/>
+                        </svg>
+                    </div>
+                    <span class="section-label-text">Transcript</span>
+                </div>
+                <div class="transcript-text" id="transcriptText"></div>
+            </div>
+
+            <div class="glass fade-in fade-in-2">
+                <div class="section-label">
+                    <div class="section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.88)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2L14 10L22 12L14 14L12 22L10 14L2 12L10 10Z"/>
+                        </svg>
+                    </div>
+                    <span class="section-label-text">Vibe Read</span>
+                </div>
+                <div class="vibe-read" id="vibeRead"></div>
+            </div>
+
+            <div class="glass fade-in fade-in-3" id="playerSection" style="display:none">
+                <div class="section-label">
+                    <div class="section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.88)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                    </div>
+                    <span class="section-label-text">Player</span>
+                </div>
+                <video id="videoPlayer" controls></video>
+                <div class="volume-controls">
+                    <div class="volume-row">
+                        <span class="vol-label">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+                            </svg>
+                            Video
+                        </span>
+                        <input type="range" class="vol-slider" id="videoVolume" min="0" max="1" step="0.01" value="1">
+                        <span class="vol-pct" id="videoVolPct">100%</span>
+                    </div>
+                    <div class="volume-row">
+                        <span class="vol-label">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+                            </svg>
+                            Music
+                        </span>
+                        <input type="range" class="vol-slider" id="musicVolume" min="0" max="1" step="0.01" value="1">
+                        <span class="vol-pct" id="musicVolPct">100%</span>
+                    </div>
+                </div>
+                <div id="embed-iframe"></div>
+            </div>
+
+            <div class="glass fade-in fade-in-4">
+                <div class="section-label" style="justify-content:space-between">
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <div class="section-icon">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.88)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+                            </svg>
+                        </div>
+                        <span class="section-label-text">Suggested Songs</span>
+                    </div>
+                    <button class="reroll-btn" id="rerollBtn" style="display:none">&#8635;&nbsp;&nbsp;5 more</button>
+                </div>
+                <div class="tracks-grid" id="tracksGrid"></div>
+            </div>
+
+            <button class="reset-btn" id="resetBtn">&#8617; &nbsp;Analyze another video</button>
+        </div>
+    </div>
+
+    <script>
+        const token = "{{ spotify_token }}";
+
+        // dB caps: video -6 dB ≈ 0.501, music -12 dB ≈ 0.251
+        const VIDEO_MAX = Math.pow(10, -6  / 20);
+        const MUSIC_MAX = Math.pow(10, -12 / 20);
+
+        let spotifyPlayer   = null;
+        let spotifyDeviceId = null;
+        let currentUri      = null;
+        let currentPlayBtn  = null;
+        let videoBlobUrl    = null;
+        let lastTranscript  = null;
+        let lastDuration    = null;
+        let excludedTracks  = new Set();
+        let audioCtx        = null;
+        let videoGainNode   = null;
+        const videoEl = document.getElementById('videoPlayer');
+
+        // ── Render auth header ──────────────────────────────────────────
+        document.getElementById('spotifyAuth').innerHTML = token
+            ? `<span class="connected-status">&#10003; Spotify Connected</span>
+               <a href="/logout" class="logout-btn">Disconnect</a>`
+            : `<a href="/login" class="connect-btn">Connect Spotify</a>`;
+
+        // ── Spotify Web Playback SDK ────────────────────────────────────
+        window.onSpotifyWebPlaybackSDKReady = () => {
+            if (!token) return;
+            spotifyPlayer = new Spotify.Player({
+                name: 'Video Vibe',
+                getOAuthToken: cb => cb(token),
+                volume: MUSIC_MAX,
+            });
+            spotifyPlayer.addListener('ready', ({ device_id }) => {
+                spotifyDeviceId = device_id;
+            });
+            spotifyPlayer.addListener('player_state_changed', state => {
+                if (!state || !currentPlayBtn) return;
+                currentPlayBtn.innerHTML = state.paused ? '&#9654;' : '&#9646;&#9646;';
+            });
+            spotifyPlayer.connect();
+        };
+
+        // ── Web Audio for video ─────────────────────────────────────────
+        function initAudio() {
+            if (audioCtx) { audioCtx.resume(); return; }
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const src = audioCtx.createMediaElementSource(videoEl);
+            videoGainNode = audioCtx.createGain();
+            videoGainNode.gain.value = VIDEO_MAX * parseFloat(videoVolSlider.value);
+            src.connect(videoGainNode);
+            videoGainNode.connect(audioCtx.destination);
+        }
+        videoEl.addEventListener('play', initAudio);
+
+        // ── Volume sliders ──────────────────────────────────────────────
+        const videoVolSlider = document.getElementById('videoVolume');
+        const musicVolSlider = document.getElementById('musicVolume');
+        const videoVolPct    = document.getElementById('videoVolPct');
+        const musicVolPct    = document.getElementById('musicVolPct');
+
+        videoVolSlider.addEventListener('input', () => {
+            const v = parseFloat(videoVolSlider.value);
+            if (videoGainNode) videoGainNode.gain.value = VIDEO_MAX * v;
+            videoVolPct.textContent = Math.round(v * 100) + '%';
+        });
+        musicVolSlider.addEventListener('input', () => {
+            const v = parseFloat(musicVolSlider.value);
+            if (spotifyPlayer) spotifyPlayer.setVolume(MUSIC_MAX * v);
+            musicVolPct.textContent = Math.round(v * 100) + '%';
+        });
+
+        // ── Upload ──────────────────────────────────────────────────────
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput  = document.getElementById('fileInput');
+        const fileName   = document.getElementById('fileName');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const loading    = document.getElementById('loading');
+        const statusText = document.getElementById('statusText');
+        const errorMsg   = document.getElementById('errorMsg');
+        const results    = document.getElementById('results');
+        const resetBtn   = document.getElementById('resetBtn');
+        let selectedFile = null;
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+        uploadZone.addEventListener('drop', e => {
+            e.preventDefault(); uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files[0]) selectFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', () => { if (fileInput.files[0]) selectFile(fileInput.files[0]); });
+
+        function selectFile(file) {
+            if (!file.name.toLowerCase().endsWith('.mp4')) { showError('Please select an MP4 video file.'); return; }
+            if (file.size > 500 * 1024 * 1024) { showError('File too large. Max 500MB.'); return; }
+            selectedFile = file;
+            if (videoBlobUrl) URL.revokeObjectURL(videoBlobUrl);
+            videoBlobUrl = URL.createObjectURL(file);
+            fileName.textContent = file.name + ' (' + (file.size / 1048576).toFixed(1) + ' MB)';
+            analyzeBtn.style.display = 'block';
+            hideError();
+        }
+
+        analyzeBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+            analyzeBtn.disabled = true;
+            loading.style.display = 'block';
+            results.style.display = 'none';
+            hideError();
+
+            const progressFill = document.querySelector('.progress-fill');
+            progressFill.style.width = '0%';
+            statusText.textContent = 'Starting\u2026';
+
+            try {
+                const fd = new FormData();
+                fd.append('video', selectedFile);
+                const resp = await fetch('/analyze', { method: 'POST', body: fd });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    showError(err.error || 'Something went wrong.');
+                    loading.style.display = 'none';
+                    analyzeBtn.disabled = false;
+                    return;
+                }
+
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const parts = buffer.split('\n\n');
+                    buffer = parts.pop();
+                    for (const part of parts) {
+                        if (!part.startsWith('data: ')) continue;
+                        const event = JSON.parse(part.slice(6));
+                        if (event.error) {
+                            showError(event.error);
+                            loading.style.display = 'none';
+                            analyzeBtn.disabled = false;
+                            progressFill.style.width = '0%';
+                            return;
+                        }
+                        if (event.message) statusText.textContent = event.message;
+                        if (event.progress != null) progressFill.style.width = event.progress + '%';
+                        if (event.done) {
+                            setTimeout(() => {
+                                loading.style.display = 'none';
+                                progressFill.style.width = '0%';
+                                analyzeBtn.disabled = false;
+                                renderResults(event);
+                            }, 400);
+                            return;
+                        }
+                    }
+                }
+            } catch {
+                showError('Connection failed. Is the server running?');
+                loading.style.display = 'none';
+                analyzeBtn.disabled = false;
+                progressFill.style.width = '0%';
+            }
+        });
+
+        function renderResults(data) {
+            document.getElementById('transcriptText').textContent = data.transcript;
+            document.getElementById('vibeRead').textContent = data.vibe_read || '';
+
+            if (videoBlobUrl) {
+                videoEl.src = videoBlobUrl;
+                document.getElementById('playerSection').style.display = 'block';
+            }
+
+            lastTranscript = data.transcript;
+            lastDuration   = data.duration || null;
+            excludedTracks = new Set();
+
+            renderTracks(data.tracks);
+            document.getElementById('rerollBtn').style.display = 'inline-block';
+            results.style.display = 'block';
+        }
+
+        function renderTracks(tracks) {
+            tracks.forEach(t => excludedTracks.add(t.name));
+
+            const grid = document.getElementById('tracksGrid');
+            grid.innerHTML = '';
+            for (const track of tracks) {
+                const art = track.album_art || '';
+                grid.innerHTML += `<div class="track-card">
+                    ${art ? `<img src="${art}" alt="Album art">` : ''}
+                    <div class="track-info">
+                        <div class="name">${escHtml(track.name)}</div>
+                        <div class="artist">${escHtml(track.artist)}</div>
+                        <div class="genre">${escHtml(track.genre || '')}</div>
+                        <div class="reason">${escHtml(track.reason || '')}</div>
+                    </div>
+                    <button class="play-btn" data-uri="${track.uri}">&#9654;</button>
+                </div>`;
+            }
+
+            grid.querySelectorAll('.play-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (!token) { showError('Connect Spotify at the top to play songs.'); return; }
+                    if (!spotifyDeviceId) { showError('Spotify is initializing — try again in a moment.'); return; }
+
+                    const uri = btn.dataset.uri;
+                    if (uri === currentUri) {
+                        spotifyPlayer.togglePlay();
+                    } else {
+                        if (currentPlayBtn) currentPlayBtn.innerHTML = '&#9654;';
+                        currentUri = uri; currentPlayBtn = btn;
+                        btn.innerHTML = '&#9646;&#9646;';
+                        await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
+                            method: 'PUT',
+                            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ uris: [uri] }),
+                        });
+                        spotifyPlayer.setVolume(MUSIC_MAX * parseFloat(musicVolSlider.value));
+                        videoEl.currentTime = 0;
+                        videoEl.play().catch(() => {});
+                    }
+                });
+            });
+        }
+
+        const rerollBtn = document.getElementById('rerollBtn');
+        rerollBtn.addEventListener('click', async () => {
+            if (!lastTranscript) return;
+            const origHTML = rerollBtn.innerHTML;
+            rerollBtn.disabled = true;
+            rerollBtn.innerHTML = 'Finding\u2026';
+            try {
+                const resp = await fetch('/reroll', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ transcript: lastTranscript, duration: lastDuration, exclude: [...excludedTracks] }),
+                });
+                const data = await resp.json();
+                if (!resp.ok) { showError(data.error || 'Reroll failed.'); return; }
+                renderTracks(data.tracks);
+            } catch {
+                showError('Reroll failed — is the server running?');
+            } finally {
+                rerollBtn.disabled = false;
+                rerollBtn.innerHTML = origHTML;
+            }
+        });
+
+        function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+        function showError(m) { errorMsg.textContent = m; errorMsg.style.display = 'block'; }
+        function hideError() { errorMsg.style.display = 'none'; }
+
+        resetBtn.addEventListener('click', () => {
+            if (spotifyPlayer) spotifyPlayer.pause();
+            if (currentPlayBtn) { currentPlayBtn.innerHTML = '&#9654;'; currentPlayBtn = null; }
+            currentUri = null;
+            videoEl.pause(); videoEl.src = '';
+            document.getElementById('playerSection').style.display = 'none';
+            results.style.display = 'none';
+            selectedFile = null;
+            if (videoBlobUrl) { URL.revokeObjectURL(videoBlobUrl); videoBlobUrl = null; }
+            fileName.textContent = '';
+            analyzeBtn.style.display = 'none';
+            fileInput.value = '';
+            lastTranscript = null;
+            lastDuration = null;
+            excludedTracks = new Set();
+            document.getElementById('rerollBtn').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    </script>
+</body>
+</html>

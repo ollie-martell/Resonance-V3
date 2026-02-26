@@ -1,0 +1,19 @@
+# Environment & secrets
+.env
+
+# SSL certs
+*.pem
+
+# Uploads
+uploads/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# macOS
+.DS_Store

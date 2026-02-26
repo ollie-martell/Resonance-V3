@@ -1,0 +1,7 @@
+flask
+faster-whisper
+transformers
+torch
+spotipy
+python-dotenv
+ffmpeg-python
