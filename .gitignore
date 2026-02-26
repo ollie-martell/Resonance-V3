@@ -3,6 +3,14 @@
 
 # SSL certs
 *.pem
+*.crt
+*.key
+
+# Binaries
+ffmpeg
+
+# Cache
+.cache
 
 # Uploads
 uploads/
