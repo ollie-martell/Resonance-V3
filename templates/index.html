@@ -621,44 +621,6 @@
         box-shadow: 0 0 20px rgba(255,255,255,0.3);
       }
 
-      .scrub-container {
-        margin-top: 16px;
-        display: none;
-        flex-direction: column;
-        gap: 6px;
-        grid-column: 1 / -1;
-      }
-
-      .track-card.playing .scrub-container {
-        display: flex;
-      }
-
-      .scrub-slider {
-        -webkit-appearance: none;
-        width: 100%;
-        height: 2px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 2px;
-        outline: none;
-      }
-
-      .scrub-slider::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 8px;
-        height: 8px;
-        background: white;
-        border-radius: 50%;
-        cursor: pointer;
-      }
-
-      .time-info {
-        display: flex;
-        justify-content: space-between;
-        font-size: 10px;
-        font-family: monospace;
-        color: var(--text-muted);
-        letter-spacing: 0.05em;
-      }
 
       .results-footer {
         display: flex;
@@ -1348,13 +1310,6 @@
               <p class="reason">${escHtml(track.reason || '')}</p>
             </div>
             <button class="play-btn" data-uri="${escHtml(track.uri)}" data-duration="${track.duration_ms || 0}" data-name="${encodeURIComponent(track.name)}" data-artist="${encodeURIComponent(track.artist)}">&#9654;</button>
-            <div class="scrub-container">
-              <input type="range" class="scrub-slider" min="0" max="1000" value="0">
-              <div class="time-info">
-                <span class="scrub-time">0:00</span>
-                <span class="scrub-duration">${formatTime(track.duration_ms || 0)}</span>
-              </div>
-            </div>
           `;
           tracksGrid.appendChild(card);
         }
