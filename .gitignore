@@ -12,8 +12,12 @@ ffmpeg
 # Cache
 .cache
 
-# Uploads
+# Uploads & exports
 uploads/
+exports/
+
+# Claude Code
+.claude/
 
 # Python
 __pycache__/
