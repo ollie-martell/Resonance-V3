@@ -501,31 +501,46 @@
         color: var(--text-dim);
       }
 
+      .player-layout {
+        display: flex;
+        gap: 24px;
+        align-items: stretch;
+      }
+
       .player-wrap {
-        width: 100%;
-        aspect-ratio: 16/9;
+        flex: 1;
+        min-width: 0;
         background: #000;
         border-radius: 20px;
         overflow: hidden;
-        margin-bottom: 32px;
         border: 1px solid var(--glass-border);
+        display: flex;
       }
 
       #videoPlayer {
         width: 100%;
         height: 100%;
+        object-fit: contain;
+      }
+
+      .controls-panel {
+        width: 200px;
+        flex-shrink: 0;
+        display: flex;
       }
 
       .controls-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        width: 100%;
+        justify-content: center;
       }
 
       .control-item {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 8px;
       }
 
       .control-header {
@@ -665,40 +680,38 @@
       }
 
       #exportControls #exportPreviewHint {
-        grid-column: 1 / -1;
-        font-size: 11px;
+        font-size: 10px;
         color: var(--accent-primary);
         text-align: center;
         margin: 4px 0 0;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.08em;
       }
 
       #exportControls .export-actions {
-        grid-column: 1 / -1;
         display: flex;
-        gap: 12px;
+        flex-direction: column;
+        gap: 8px;
         margin-top: 4px;
       }
 
       #exportCancelBtn {
-        flex: 1;
-        padding: 12px;
-        font-size: 13px;
+        padding: 10px;
+        font-size: 12px;
+        width: 100%;
       }
 
       #exportConfirmBtn {
-        flex: 2;
-        padding: 12px;
-        font-size: 13px;
+        padding: 10px;
+        font-size: 12px;
+        width: 100%;
         background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
         color: white;
         display: none;
       }
 
       #exportProgress {
-        grid-column: 1 / -1;
         display: none;
         margin-top: 4px;
       }
@@ -836,9 +849,11 @@
 
           <div class="card-glass" style="margin-bottom: 32px;">
             <span class="label-micro">Visual Preview</span>
+            <div class="player-layout">
             <div class="player-wrap">
               <video id="videoPlayer" controls></video>
             </div>
+            <div class="controls-panel">
             <!-- Spotify controls (default) -->
             <div id="spotifyControls" class="controls-grid">
               <div class="control-item">
@@ -899,6 +914,8 @@
                 <p id="exportStatusText"></p>
               </div>
             </div>
+            </div><!-- /controls-panel -->
+            </div><!-- /player-layout -->
           </div>
 
           <div class="card-glass">
