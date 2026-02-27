@@ -363,11 +363,18 @@
                         if (currentPlayBtn) currentPlayBtn.innerHTML = '&#9654;';
                         currentUri = uri; currentPlayBtn = btn;
                         btn.innerHTML = '&#9646;&#9646;';
-                        await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
+                        const playResp = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
                             method: 'PUT',
                             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                             body: JSON.stringify({ uris: [uri] }),
                         });
+                        if (!playResp.ok) {
+                            const err = await playResp.json().catch(() => ({}));
+                            showError('Spotify: ' + (err.error?.message || 'Playback failed. Make sure you have Spotify Premium.'));
+                            btn.innerHTML = '&#9654;';
+                            currentUri = null; currentPlayBtn = null;
+                            return;
+                        }
                         spotifyPlayer.setVolume(MUSIC_MAX * parseFloat(musicVolSlider.value));
                         videoEl.currentTime = 0;
                         videoEl.play().catch(() => {});

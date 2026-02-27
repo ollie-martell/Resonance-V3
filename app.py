@@ -21,7 +21,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 CLIENT_ID     = os.getenv("SPOTIPY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
 REDIRECT_URI  = os.getenv("REDIRECT_URI", "https://localhost:5001/callback")
-SCOPES        = "user-read-email user-read-private"
+SCOPES        = "user-read-email user-read-private streaming"
 
 
 @app.route("/")
