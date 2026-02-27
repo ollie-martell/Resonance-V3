@@ -1218,8 +1218,36 @@
       };
 
       // ── Mobile Spotify REST helpers ──────────────────────────────
+      let mobileDeviceId = null;
+
+      async function mobileGetDevice() {
+        if (mobileDeviceId) return mobileDeviceId;
+        try {
+          const resp = await fetch('https://api.spotify.com/v1/me/player/devices', {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          if (!resp.ok) return null;
+          const data = await resp.json();
+          const devices = data.devices || [];
+          // Prefer the active device, then any smartphone, then first available
+          const active = devices.find(d => d.is_active);
+          const phone = devices.find(d => d.type === 'Smartphone');
+          const picked = active || phone || devices[0];
+          if (picked) mobileDeviceId = picked.id;
+          return mobileDeviceId;
+        } catch { return null; }
+      }
+
       async function mobileSpotifyPlay(uri) {
-        const resp = await fetch('https://api.spotify.com/v1/me/player/play', {
+        const devId = await mobileGetDevice();
+        if (!devId) return false;
+        // Transfer playback to ensure device is active
+        await fetch('https://api.spotify.com/v1/me/player', {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device_ids: [devId] }),
+        }).catch(() => {});
+        const resp = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${devId}`, {
           method: 'PUT',
           headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ uris: [uri] }),
@@ -1232,7 +1260,9 @@
       }
 
       async function mobileSpotifyResume() {
-        await fetch('https://api.spotify.com/v1/me/player/play', {
+        const devId = await mobileGetDevice();
+        const qs = devId ? `?device_id=${devId}` : '';
+        await fetch(`https://api.spotify.com/v1/me/player/play${qs}`, {
           method: 'PUT',
           headers: { 'Authorization': `Bearer ${token}` },
         }).catch(() => {});
@@ -1245,7 +1275,9 @@
           mobilePositionMs += Date.now() - mobilePlayStartTime;
         }
         mobileIsPlaying = false;
-        await fetch('https://api.spotify.com/v1/me/player/pause', {
+        const devId = await mobileGetDevice();
+        const qs = devId ? `?device_id=${devId}` : '';
+        await fetch(`https://api.spotify.com/v1/me/player/pause${qs}`, {
           method: 'PUT',
           headers: { 'Authorization': `Bearer ${token}` },
         }).catch(() => {});
@@ -1254,7 +1286,9 @@
       async function mobileSpotifySeek(posMs) {
         mobilePositionMs = posMs;
         mobilePlayStartTime = Date.now();
-        await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${Math.round(posMs)}`, {
+        const devId = await mobileGetDevice();
+        const dqs = devId ? `&device_id=${devId}` : '';
+        await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${Math.round(posMs)}${dqs}`, {
           method: 'PUT',
           headers: { 'Authorization': `Bearer ${token}` },
         }).catch(() => {});
@@ -1622,7 +1656,7 @@
               }
 
               if (!playOk) {
-                if (isMobile) showError('Spotify playback failed. Make sure Spotify is open on your device.');
+                if (isMobile) showError('Spotify playback failed. Open Spotify, play any song briefly, then come back here and try again.');
                 btn.innerHTML = '&#9654;';
                 card.classList.remove('playing');
                 currentUri = null; currentPlayBtn = null; currentCard = null;
