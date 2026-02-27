@@ -1076,10 +1076,14 @@
          ══════════════════════════════════════════════════════════════════ */
 
       const token = "{{ spotify_token }}";
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       // dB caps from original: video -6 dB ≈ 0.501, music -12 dB ≈ 0.251
       const VIDEO_MAX = Math.pow(10, -6  / 20);
       const MUSIC_MAX = Math.pow(10, -12 / 20);
+      let mobileIsPlaying = false;
+      let mobilePositionMs = 0;
+      let mobilePlayStartTime = 0;
 
       // ── State ──────────────────────────────────────────────────────
       let currentVideoFile = null;
@@ -1195,9 +1199,9 @@
         }, 50);
       }
 
-      // ── Spotify Web Playback SDK ───────────────────────────────────
+      // ── Spotify Web Playback SDK (desktop only) ────────────────────
       window.onSpotifyWebPlaybackSDKReady = () => {
-        if (!token) return;
+        if (!token || isMobile) return;
         spotifyPlayer = new Spotify.Player({
           name: 'Resonance',
           getOAuthToken: cb => cb(token),
@@ -1212,6 +1216,54 @@
         });
         spotifyPlayer.connect();
       };
+
+      // ── Mobile Spotify REST helpers ──────────────────────────────
+      async function mobileSpotifyPlay(uri) {
+        const resp = await fetch('https://api.spotify.com/v1/me/player/play', {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uris: [uri] }),
+        });
+        if (!resp.ok) return false;
+        mobileIsPlaying = true;
+        mobilePositionMs = 0;
+        mobilePlayStartTime = Date.now();
+        return true;
+      }
+
+      async function mobileSpotifyResume() {
+        await fetch('https://api.spotify.com/v1/me/player/play', {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${token}` },
+        }).catch(() => {});
+        mobileIsPlaying = true;
+        mobilePlayStartTime = Date.now();
+      }
+
+      async function mobileSpotifyPause() {
+        if (mobileIsPlaying) {
+          mobilePositionMs += Date.now() - mobilePlayStartTime;
+        }
+        mobileIsPlaying = false;
+        await fetch('https://api.spotify.com/v1/me/player/pause', {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${token}` },
+        }).catch(() => {});
+      }
+
+      async function mobileSpotifySeek(posMs) {
+        mobilePositionMs = posMs;
+        mobilePlayStartTime = Date.now();
+        await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${Math.round(posMs)}`, {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${token}` },
+        }).catch(() => {});
+      }
+
+      function mobileGetPosition() {
+        if (mobileIsPlaying) return mobilePositionMs + (Date.now() - mobilePlayStartTime);
+        return mobilePositionMs;
+      }
 
       // ── Web Audio for video volume control ─────────────────────────
       function initAudio() {
@@ -1232,9 +1284,13 @@
           startExportPoll();
           return;
         }
-        if (syncingPlayback || !currentUri || !spotifyPlayer) return;
+        if (syncingPlayback || !currentUri) return;
         syncingPlayback = true;
-        try { await spotifyPlayer.resume(); } catch {}
+        if (isMobile) {
+          await mobileSpotifyResume();
+        } else if (spotifyPlayer) {
+          try { await spotifyPlayer.resume(); } catch {}
+        }
         syncingPlayback = false;
         startSeekPoll();
       });
@@ -1244,9 +1300,13 @@
           if (instrAudioEl) instrAudioEl.pause();
           return;
         }
-        if (syncingPlayback || !currentUri || !spotifyPlayer) return;
+        if (syncingPlayback || !currentUri) return;
         syncingPlayback = true;
-        try { await spotifyPlayer.pause(); } catch {}
+        if (isMobile) {
+          await mobileSpotifyPause();
+        } else if (spotifyPlayer) {
+          try { await spotifyPlayer.pause(); } catch {}
+        }
         syncingPlayback = false;
       });
 
@@ -1259,11 +1319,18 @@
       function startSeekPoll() {
         if (seekPollTimer) return;
         seekPollTimer = setInterval(async () => {
-          if (isSeeking || !spotifyPlayer || !currentUri) return;
-          const state = await spotifyPlayer.getCurrentState().catch(() => null);
-          if (!state) return;
-          const pos = state.position;
-          const dur = state.duration || songDurationMs;
+          if (isSeeking || !currentUri) return;
+          let pos, dur;
+          if (isMobile) {
+            pos = mobileGetPosition();
+            dur = songDurationMs;
+          } else {
+            if (!spotifyPlayer) return;
+            const state = await spotifyPlayer.getCurrentState().catch(() => null);
+            if (!state) return;
+            pos = state.position;
+            dur = state.duration || songDurationMs;
+          }
           if (dur > 0) {
             songScrubber.value = Math.round((pos / dur) * 1000);
             songTime.textContent = formatTime(pos) + ' / ' + formatTime(dur);
@@ -1310,7 +1377,14 @@
 
         musicVolSlider.addEventListener('input', () => {
           const v = parseFloat(musicVolSlider.value);
-          if (spotifyPlayer) spotifyPlayer.setVolume(MUSIC_MAX * v);
+          if (isMobile) {
+            fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${Math.round(MUSIC_MAX * v * 100)}`, {
+              method: 'PUT',
+              headers: { 'Authorization': `Bearer ${token}` },
+            }).catch(() => {});
+          } else if (spotifyPlayer) {
+            spotifyPlayer.setVolume(MUSIC_MAX * v);
+          }
           musicVolPct.textContent = Math.round(v * 100) + '%';
         });
 
@@ -1325,9 +1399,13 @@
         });
         songScrubber.addEventListener('change', async () => {
           isSeeking = false;
-          if (!spotifyPlayer || !currentUri || songDurationMs <= 0) return;
+          if (!currentUri || songDurationMs <= 0) return;
           const pos = Math.round((parseInt(songScrubber.value) / 1000) * songDurationMs);
-          await spotifyPlayer.seek(pos).catch(() => {});
+          if (isMobile) {
+            await mobileSpotifySeek(pos);
+          } else if (spotifyPlayer) {
+            await spotifyPlayer.seek(pos).catch(() => {});
+          }
         });
 
         // Reroll & reset
@@ -1469,7 +1547,7 @@
         tracksGrid.querySelectorAll('.play-btn').forEach(btn => {
           btn.addEventListener('click', async () => {
             if (!token) { showError('Connect Spotify to play songs.'); return; }
-            if (!spotifyDeviceId) { showError('Spotify is initializing — try again in a moment.'); return; }
+            if (!isMobile && !spotifyDeviceId) { showError('Spotify is initializing — try again in a moment.'); return; }
 
             const uri  = btn.dataset.uri;
             const card = btn.closest('.track-card');
@@ -1477,18 +1555,31 @@
             if (uri === currentUri) {
               // Toggle play/pause
               syncingPlayback = true;
-              const state = await spotifyPlayer.getCurrentState().catch(() => null);
-              const paused = !state || state.paused;
-              try {
-                if (paused) {
-                  await spotifyPlayer.resume();
-                  await videoEl.play();
-                  startSeekPoll();
-                } else {
-                  await spotifyPlayer.pause();
-                  videoEl.pause();
-                }
-              } catch {}
+              if (isMobile) {
+                try {
+                  if (!mobileIsPlaying) {
+                    await mobileSpotifyResume();
+                    await videoEl.play();
+                    startSeekPoll();
+                  } else {
+                    await mobileSpotifyPause();
+                    videoEl.pause();
+                  }
+                } catch {}
+              } else {
+                const state = await spotifyPlayer.getCurrentState().catch(() => null);
+                const paused = !state || state.paused;
+                try {
+                  if (paused) {
+                    await spotifyPlayer.resume();
+                    await videoEl.play();
+                    startSeekPoll();
+                  } else {
+                    await spotifyPlayer.pause();
+                    videoEl.pause();
+                  }
+                } catch {}
+              }
               syncingPlayback = false;
             } else {
               // New song — reset export preview if active
@@ -1514,22 +1605,33 @@
               songScrubber.value = 0;
               songTime.textContent = '0:00 / ' + formatTime(songDurationMs);
 
-              const playResp = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ uris: [uri] }),
-              });
+              let playOk;
+              if (isMobile) {
+                playOk = await mobileSpotifyPlay(uri);
+              } else {
+                const playResp = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
+                  method: 'PUT',
+                  headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ uris: [uri] }),
+                });
+                playOk = playResp.ok;
+                if (!playOk) {
+                  const err = await playResp.json().catch(() => ({}));
+                  showError('Spotify: ' + (err.error?.message || 'Playback failed. Make sure you have Spotify Premium.'));
+                }
+              }
 
-              if (!playResp.ok) {
-                const err = await playResp.json().catch(() => ({}));
-                showError('Spotify: ' + (err.error?.message || 'Playback failed. Make sure you have Spotify Premium.'));
+              if (!playOk) {
+                if (isMobile) showError('Spotify playback failed. Make sure Spotify is open on your device.');
                 btn.innerHTML = '&#9654;';
                 card.classList.remove('playing');
                 currentUri = null; currentPlayBtn = null; currentCard = null;
                 return;
               }
 
-              spotifyPlayer.setVolume(MUSIC_MAX * parseFloat(musicVolSlider.value));
+              if (!isMobile && spotifyPlayer) {
+                spotifyPlayer.setVolume(MUSIC_MAX * parseFloat(musicVolSlider.value));
+              }
               syncingPlayback = true;
               videoEl.currentTime = 0;
               await videoEl.play().catch(() => {});
@@ -1608,7 +1710,11 @@
 
         // Pause Spotify
         syncingPlayback = true;
-        if (spotifyPlayer) spotifyPlayer.pause().catch(() => {});
+        if (isMobile) {
+          mobileSpotifyPause().catch(() => {});
+        } else if (spotifyPlayer) {
+          spotifyPlayer.pause().catch(() => {});
+        }
         syncingPlayback = false;
 
         // Swap controls: hide Spotify, show export
@@ -1864,7 +1970,11 @@
         currentSongArtist = '';
 
         stopSeekPoll();
-        if (spotifyPlayer) spotifyPlayer.pause();
+        if (isMobile) {
+          mobileSpotifyPause().catch(() => {});
+        } else if (spotifyPlayer) {
+          spotifyPlayer.pause();
+        }
         if (currentPlayBtn) { currentPlayBtn.innerHTML = '&#9654;'; currentPlayBtn = null; }
         if (currentCard) { currentCard.classList.remove('playing'); currentCard = null; }
         currentUri = null;
