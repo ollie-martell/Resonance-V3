@@ -1,540 +1,1346 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resonance</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://sdk.scdn.co/spotify-player.js"></script>
-</head>
-<body>
-    <div class="gradient-mesh"></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resonance — Your video's emotion, matched to music.</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg-black: #050505;
+        --accent-primary: #8b5cf6;
+        --accent-secondary: #4f46e5;
+        --accent-warm: #f59e0b;
+        --glass-bg: rgba(255, 255, 255, 0.03);
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --text-main: #ffffff;
+        --text-dim: rgba(255, 255, 255, 0.6);
+        --text-muted: rgba(255, 255, 255, 0.3);
+      }
 
-    <div class="container">
-        <header>
-            <div class="brand">
-                <div class="brand-icon">✦</div>
-                <div>
-                    <h1>Resonance</h1>
-                    <p>Upload a video · detect the vibe · find the track</p>
-                </div>
-            </div>
-            <div class="spotify-auth" id="spotifyAuth"></div>
-        </header>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: antialiased;
+      }
 
-        <div class="upload-zone" id="uploadZone">
-            <div class="icon">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="2" y="6" width="20" height="16" rx="2"/>
-                    <path d="M2 12h20"/>
-                    <path d="M7 6V2"/>
-                    <path d="M12 6V2"/>
-                    <path d="M17 6V2"/>
-                    <path d="M2 9l5-3"/>
-                    <path d="M9 9l5-3"/>
-                    <path d="M16 9l5-3"/>
-                </svg>
-            </div>
-            <h2>Drop your video here</h2>
-            <p>MP4 &nbsp;·&nbsp; up to 500 MB</p>
-            <input type="file" id="fileInput" accept=".mp4,video/mp4">
-            <div class="file-selected" id="fileName"></div>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-black);
+        color: var(--text-main);
+        overflow: hidden;
+        height: 100vh;
+        width: 100vw;
+      }
+
+      /* Immersive Background */
+      .atmosphere {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        background: 
+          radial-gradient(circle at 20% 30%, rgba(79, 70, 229, 0.15) 0%, transparent 50%),
+          radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.15) 0%, transparent 50%);
+        filter: blur(80px);
+      }
+
+      .cursor-glow {
+        position: fixed;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: -1;
+        transform: translate(-50%, -50%);
+        transition: opacity 0.5s ease;
+        opacity: 0;
+      }
+
+      /* Screen Management */
+      .screen {
+        position: absolute;
+        inset: 0;
+        display: none;
+        flex-direction: column;
+        opacity: 0;
+        transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        transform: translateY(10px);
+        padding: 0 40px;
+      }
+
+      .screen.active {
+        display: flex;
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* Header */
+      header {
+        height: 100px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        max-width: 1400px;
+        margin: 0 auto;
+        z-index: 100;
+      }
+
+      .logo-group {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        cursor: pointer;
+      }
+
+      .logo-mark {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        height: 28px;
+      }
+
+      .logo-mark .bar {
+        width: 3px;
+        border-radius: 3px;
+        background: linear-gradient(to top, var(--accent-primary), var(--accent-secondary));
+        animation: barPulse 1.2s ease-in-out infinite;
+        filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.4));
+      }
+
+      .logo-mark .bar:nth-child(1) { height: 40%; animation-delay: 0s; }
+      .logo-mark .bar:nth-child(2) { height: 70%; animation-delay: 0.15s; }
+      .logo-mark .bar:nth-child(3) { height: 100%; animation-delay: 0.3s; }
+      .logo-mark .bar:nth-child(4) { height: 55%; animation-delay: 0.45s; }
+      .logo-mark .bar:nth-child(5) { height: 85%; animation-delay: 0.6s; }
+
+      @keyframes barPulse {
+        0%, 100% { transform: scaleY(1); opacity: 0.7; }
+        50% { transform: scaleY(0.4); opacity: 1; }
+      }
+
+      .logo-mark.gate-logo {
+        height: 64px;
+        gap: 6px;
+      }
+
+      .logo-mark.gate-logo .bar {
+        width: 6px;
+        border-radius: 4px;
+      }
+
+      .wordmark {
+        font-weight: 700;
+        font-size: 14px;
+        letter-spacing: 0.4em;
+        text-transform: uppercase;
+        color: var(--text-main);
+        opacity: 0.9;
+      }
+
+      .status-pill {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        padding: 8px 16px;
+        border-radius: 100px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        backdrop-filter: blur(10px);
+      }
+
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        background: #1ed760;
+        border-radius: 50%;
+        box-shadow: 0 0 8px #1ed760;
+      }
+
+      .logout-link {
+        color: var(--text-muted);
+        text-decoration: none;
+        margin-left: 12px;
+        transition: color 0.2s;
+      }
+
+      .logout-link:hover {
+        color: var(--text-main);
+      }
+
+      /* Buttons */
+      .btn {
+        background: var(--text-main);
+        color: var(--bg-black);
+        border: none;
+        padding: 16px 32px;
+        border-radius: 100px;
+        font-weight: 600;
+        font-size: 14px;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+      }
+
+      .btn:hover {
+        transform: scale(1.02);
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+      }
+
+      .btn:active {
+        transform: scale(0.98);
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .btn-glass {
+        background: var(--glass-bg);
+        color: var(--text-main);
+        border: 1px solid var(--glass-border);
+        backdrop-filter: blur(20px);
+      }
+
+      .btn-glass:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+
+      /* SCREEN 1: GATE */
+      #screen-gate {
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+      }
+
+      .gate-content {
+        max-width: 600px;
+      }
+
+      .gate-title-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 32px;
+      }
+
+      .gate-title {
+        font-size: 96px;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 0.85;
+        background: linear-gradient(to bottom, #fff 20%, rgba(255,255,255,0.3));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .gate-tagline {
+        font-size: 18px;
+        font-weight: 300;
+        color: var(--text-dim);
+        margin-bottom: 48px;
+        line-height: 1.5;
+      }
+
+      /* SCREEN 2: UPLOAD */
+      #screen-upload {
+        align-items: center;
+      }
+
+      .upload-hero {
+        margin-top: 6vh;
+        width: 100%;
+        max-width: 900px;
+        text-align: center;
+      }
+
+      .upload-title {
+        font-size: 56px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        margin-bottom: 16px;
+        background: linear-gradient(to right, #fff, var(--text-dim));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .upload-subtitle {
+        color: var(--text-dim);
+        margin-bottom: 40px;
+      }
+
+      .drop-surface {
+        width: 100%;
+        height: 480px;
+        background: radial-gradient(circle at center, rgba(255,255,255,0.03) 0%, transparent 100%);
+        border: 1px solid var(--glass-border);
+        border-radius: 40px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .drop-surface::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(45deg, transparent, rgba(139, 92, 246, 0.05), transparent);
+        transform: translateX(-100%);
+        transition: transform 0.8s;
+      }
+
+      .drop-surface:hover::before {
+        transform: translateX(100%);
+      }
+
+      .drop-surface:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+        background: radial-gradient(circle at center, rgba(255,255,255,0.05) 0%, transparent 100%);
+        transform: scale(1.005);
+      }
+
+      .drop-surface.dragover {
+        border-color: var(--accent-primary);
+        background: rgba(139, 92, 246, 0.05);
+      }
+
+      .upload-icon-wrap {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: var(--glass-bg);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 32px;
+        border: 1px solid var(--glass-border);
+      }
+
+      .file-preview {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .file-name {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--accent-warm);
+      }
+
+      .file-meta {
+        font-size: 13px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      #connectBtn {
+        background: #1DB954;
+        color: white;
+      }
+
+      #connectBtn:hover {
+        background: #1ed760;
+        box-shadow: 0 0 30px rgba(29, 185, 84, 0.3);
+      }
+
+      #analyzeBtn {
+        margin-top: 64px;
+        display: none;
+        animation: fadeIn 0.5s ease forwards;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* SCREEN 3: LOADING */
+      #screen-loading {
+        justify-content: center;
+        align-items: center;
+      }
+
+      .loading-visual {
+        position: relative;
+        width: 400px;
+        height: 400px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .ring {
+        position: absolute;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        animation: pulseRing 4s infinite cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .ring:nth-child(1) { width: 100px; height: 100px; animation-delay: 0s; }
+      .ring:nth-child(2) { width: 200px; height: 200px; animation-delay: 0.5s; }
+      .ring:nth-child(3) { width: 300px; height: 300px; animation-delay: 1s; }
+
+      @keyframes pulseRing {
+        0% { transform: scale(0.8); opacity: 0; }
+        50% { opacity: 0.5; }
+        100% { transform: scale(1.5); opacity: 0; }
+      }
+
+      .loading-text-wrap {
+        text-align: center;
+        margin-top: 40px;
+      }
+
+      #statusText {
+        font-size: 14px;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 24px;
+      }
+
+      .progress-rail {
+        width: 240px;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 0 auto;
+        border-radius: 2px;
+        overflow: hidden;
+      }
+
+      #progressFill {
+        width: 0%;
+        height: 100%;
+        background: white;
+        transition: width 0.4s ease;
+      }
+
+      /* SCREEN 4: RESULTS */
+      #screen-results {
+        overflow-y: auto;
+        padding-top: 20px;
+      }
+
+      .results-layout {
+        display: grid;
+        grid-template-columns: 1fr 440px;
+        gap: 60px;
+        max-width: 1400px;
+        margin: 40px auto 0;
+        padding-bottom: 100px;
+      }
+
+      .label-micro {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: var(--text-muted);
+        margin-bottom: 20px;
+        display: block;
+      }
+
+      .card-glass {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 32px;
+        padding: 40px;
+        backdrop-filter: blur(20px);
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .card-glass:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+        transform: scale(1.02);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(139, 92, 246, 0.15);
+      }
+
+      #vibeRead, #transcriptText {
+        font-size: 15px;
+        line-height: 1.7;
+        color: var(--text-dim);
+      }
+
+      .player-wrap {
+        width: 100%;
+        aspect-ratio: 16/9;
+        background: #000;
+        border-radius: 20px;
+        overflow: hidden;
+        margin-bottom: 32px;
+        border: 1px solid var(--glass-border);
+      }
+
+      #videoPlayer {
+        width: 100%;
+        height: 100%;
+      }
+
+      .controls-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 24px;
+      }
+
+      .control-item {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .control-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 12px;
+        height: 12px;
+        background: white;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      /* Track Cards */
+      #tracksGrid {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .track-card {
+        display: grid;
+        grid-template-columns: 60px 1fr 40px;
+        gap: 20px;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        transition: all 0.3s;
+      }
+
+      .track-card:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+
+      .track-card.playing {
+        border-color: var(--accent-primary);
+        background: rgba(139, 92, 246, 0.08);
+      }
+
+      .track-art {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        object-fit: cover;
+        background: rgba(255,255,255,0.05);
+      }
+
+      .track-main {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .name { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
+      .artist { font-size: 13px; color: var(--text-dim); }
+      .genre {
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--accent-primary);
+        margin-top: 6px;
+      }
+      .reason {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 10px;
+        line-height: 1.4;
+      }
+
+      .play-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: white;
+        color: black;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        border: none;
+        align-self: center;
+        font-size: 12px;
+        transition: all 0.2s;
+      }
+
+      .play-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 0 20px rgba(255,255,255,0.3);
+      }
+
+      .scrub-container {
+        margin-top: 16px;
+        display: none;
+        flex-direction: column;
+        gap: 6px;
+        grid-column: 1 / -1;
+      }
+
+      .track-card.playing .scrub-container {
+        display: flex;
+      }
+
+      .scrub-slider {
+        -webkit-appearance: none;
+        width: 100%;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        outline: none;
+      }
+
+      .scrub-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 8px;
+        height: 8px;
+        background: white;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      .time-info {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        font-family: monospace;
+        color: var(--text-muted);
+        letter-spacing: 0.05em;
+      }
+
+      .results-footer {
+        display: flex;
+        justify-content: center;
+        padding: 60px 0;
+      }
+
+      #errorMsg {
+        position: fixed;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(239, 68, 68, 0.9);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 100px;
+        font-size: 13px;
+        font-weight: 600;
+        display: none;
+        z-index: 1000;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="atmosphere"></div>
+
+    <!-- SCREEN 1: GATE (Spotify login) -->
+    <div id="screen-gate" class="screen">
+      <div class="gate-content">
+        <div class="gate-title-row">
+          <div class="logo-mark gate-logo">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+          </div>
+          <h1 class="gate-title">Resonance</h1>
         </div>
-
-        <button class="analyze-btn" id="analyzeBtn">✦ &nbsp;Analyze Vibe</button>
-        <div class="error-msg" id="errorMsg"></div>
-
-        <div class="loading" id="loading">
-            <div class="loading-inner">
-                <div class="waveform">
-                    <div class="bar wave-bar-1"></div>
-                    <div class="bar wave-bar-2"></div>
-                    <div class="bar wave-bar-3"></div>
-                    <div class="bar wave-bar-4"></div>
-                    <div class="bar wave-bar-5"></div>
-                    <div class="bar wave-bar-6"></div>
-                    <div class="bar wave-bar-7"></div>
-                    <div class="bar wave-bar-4"></div>
-                    <div class="bar wave-bar-5"></div>
-                    <div class="bar wave-bar-2"></div>
-                    <div class="bar wave-bar-3"></div>
-                    <div class="bar wave-bar-1"></div>
-                    <div class="bar wave-bar-6"></div>
-                </div>
-                <div class="status" id="statusText">Starting...</div>
-                <div class="progress-bar"><div class="progress-fill"></div></div>
-            </div>
-        </div>
-
-        <div class="results" id="results">
-
-            <div class="glass fade-in fade-in-1">
-                <div class="section-label">
-                    <div class="section-icon">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.88)" stroke-width="2.2" stroke-linecap="round">
-                            <line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="14" y2="17"/>
-                        </svg>
-                    </div>
-                    <span class="section-label-text">Transcript</span>
-                </div>
-                <div class="transcript-text" id="transcriptText"></div>
-            </div>
-
-            <div class="glass fade-in fade-in-2">
-                <div class="section-label">
-                    <div class="section-icon">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.88)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 2L14 10L22 12L14 14L12 22L10 14L2 12L10 10Z"/>
-                        </svg>
-                    </div>
-                    <span class="section-label-text">Vibe Read</span>
-                </div>
-                <div class="vibe-read" id="vibeRead"></div>
-            </div>
-
-            <div class="glass fade-in fade-in-3" id="playerSection" style="display:none">
-                <div class="section-label">
-                    <div class="section-icon">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.88)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="5 3 19 12 5 21 5 3"/>
-                        </svg>
-                    </div>
-                    <span class="section-label-text">Player</span>
-                </div>
-                <video id="videoPlayer" controls></video>
-                <div class="volume-controls">
-                    <div class="volume-row">
-                        <span class="vol-label">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
-                            </svg>
-                            Video
-                        </span>
-                        <input type="range" class="vol-slider" id="videoVolume" min="0" max="1" step="0.01" value="1">
-                        <span class="vol-pct" id="videoVolPct">100%</span>
-                    </div>
-                    <div class="volume-row">
-                        <span class="vol-label">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-                            </svg>
-                            Music
-                        </span>
-                        <input type="range" class="vol-slider" id="musicVolume" min="0" max="1" step="0.01" value="1">
-                        <span class="vol-pct" id="musicVolPct">100%</span>
-                    </div>
-                    <div class="volume-row" id="songScrubRow" style="display:none">
-                        <span class="vol-label">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="3" y1="12" x2="21" y2="12"/><circle cx="8" cy="12" r="2.5" fill="rgba(255,255,255,0.75)" stroke="none"/>
-                            </svg>
-                            Song
-                        </span>
-                        <input type="range" class="vol-slider" id="songScrubber" min="0" max="1000" step="1" value="0">
-                        <span class="vol-pct" id="songTime" style="min-width:76px">0:00 / 0:00</span>
-                    </div>
-                </div>
-                <div id="embed-iframe"></div>
-            </div>
-
-            <div class="glass fade-in fade-in-4">
-                <div class="section-label" style="justify-content:space-between">
-                    <div style="display:flex;align-items:center;gap:10px">
-                        <div class="section-icon">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.88)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-                            </svg>
-                        </div>
-                        <span class="section-label-text">Suggested Songs</span>
-                    </div>
-                    <button class="reroll-btn" id="rerollBtn" style="display:none">&#8635;&nbsp;&nbsp;5 more</button>
-                </div>
-                <div class="tracks-grid" id="tracksGrid"></div>
-            </div>
-
-            <button class="reset-btn" id="resetBtn">&#8617; &nbsp;Analyze another video</button>
-        </div>
+        <p class="gate-tagline">Experience your video's emotional depth<br>matched with the perfect soundtrack.</p>
+        <a href="/login" id="connectBtn" class="btn" style="text-decoration:none;">Connect Spotify</a>
+      </div>
     </div>
 
+    <!-- SCREEN 2: UPLOAD -->
+    <div id="screen-upload" class="screen">
+      <header>
+        <div class="logo-group" onclick="resetApp()">
+          <div class="logo-mark">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+          </div>
+          <span class="wordmark">Resonance</span>
+        </div>
+        <div class="status-pill">
+          <span class="status-dot"></span>
+          Spotify Active
+          <a href="/logout" class="logout-link">Disconnect</a>
+        </div>
+      </header>
+
+      <div class="upload-hero">
+        <h2 class="upload-title">Stop Searching. Start Resonating.</h2>
+        <p class="upload-subtitle">Finding the perfect track is a pain. We'll help you find the rhythm that makes your story resonate.</p>
+        
+        <div id="dropZone" class="drop-surface">
+          <div id="uploadPrompt">
+            <div class="upload-icon-wrap">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+              </svg>
+            </div>
+            <p style="font-weight: 500; margin-bottom: 8px;">Drag and drop video</p>
+            <p style="font-size: 13px; color: var(--text-muted);">MP4 format, up to 500MB</p>
+          </div>
+          
+          <div id="filePreview" class="file-preview">
+            <span id="fileName" class="file-name"></span>
+            <span id="fileSize" class="file-meta"></span>
+          </div>
+          
+          <input type="file" id="fileInput" accept=".mp4" style="display: none;">
+        </div>
+
+        <button id="analyzeBtn" class="btn">Analyze Vibe</button>
+      </div>
+    </div>
+
+    <!-- SCREEN 3: LOADING -->
+    <div id="screen-loading" class="screen">
+      <div class="loading-visual">
+        <div class="ring"></div>
+        <div class="ring"></div>
+        <div class="ring"></div>
+        <div class="logo-mark">
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+      </div>
+      <div class="loading-text-wrap">
+        <p id="statusText">Initializing</p>
+        <div class="progress-rail">
+          <div id="progressFill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 4: RESULTS -->
+    <div id="screen-results" class="screen">
+      <header>
+        <div class="logo-group" onclick="resetApp()">
+          <div class="logo-mark">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+          </div>
+          <span class="wordmark">Resonance</span>
+        </div>
+        <div class="status-pill">
+          <span class="status-dot"></span>
+          Spotify Active
+        </div>
+      </header>
+
+      <div class="results-layout">
+        <div class="results-main">
+          <div class="card-glass" style="margin-bottom: 32px;">
+            <span class="label-micro">Emotional Analysis</span>
+            <div id="vibeRead"></div>
+          </div>
+
+          <div class="card-glass" style="margin-bottom: 32px;">
+            <span class="label-micro">Visual Preview</span>
+            <div class="player-wrap">
+              <video id="videoPlayer" controls></video>
+            </div>
+            <div class="controls-grid">
+              <div class="control-item">
+                <div class="control-header">
+                  <span>Video Volume</span>
+                  <span id="videoVolPct">100%</span>
+                </div>
+                <input type="range" id="videoVolume" min="0" max="1" step="0.01" value="1">
+              </div>
+              <div class="control-item">
+                <div class="control-header">
+                  <span>Music Volume</span>
+                  <span id="musicVolPct">100%</span>
+                </div>
+                <input type="range" id="musicVolume" min="0" max="1" step="0.01" value="1">
+              </div>
+              <div class="control-item">
+                <div class="control-header">
+                  <span>Song Position</span>
+                  <span id="songTime">0:00</span>
+                </div>
+                <input type="range" id="songScrubber" min="0" max="1000" step="1" value="0">
+              </div>
+            </div>
+          </div>
+
+          <div class="card-glass">
+            <span class="label-micro">Transcript</span>
+            <div id="transcriptText"></div>
+          </div>
+        </div>
+
+        <div class="results-sidebar">
+          <div class="card-glass">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px;">
+              <span class="label-micro" style="margin-bottom: 0;">Suggested Tracks</span>
+              <button id="rerollBtn" class="btn btn-glass" style="padding: 8px 16px; font-size: 11px;">&#8635;&nbsp;&nbsp;5 more</button>
+            </div>
+            <div id="tracksGrid"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="results-footer">
+        <button id="resetBtn" class="btn btn-glass">Analyze Another Video</button>
+      </div>
+    </div>
+
+    <div id="errorMsg"></div>
+    <div class="cursor-glow" id="cursorGlow"></div>
+
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
     <script>
-        const token = "{{ spotify_token }}";
+      /* ══════════════════════════════════════════════════════════════════
+         Resonance — Merged: beautiful new UI + real backend wiring
+         ══════════════════════════════════════════════════════════════════ */
 
-        // dB caps: video -6 dB ≈ 0.501, music -12 dB ≈ 0.251
-        const VIDEO_MAX = Math.pow(10, -6  / 20);
-        const MUSIC_MAX = Math.pow(10, -12 / 20);
+      const token = "{{ spotify_token }}";
 
-        let spotifyPlayer   = null;
-        let spotifyDeviceId = null;
-        let currentUri      = null;
-        let currentPlayBtn  = null;
-        let videoBlobUrl    = null;
-        let lastTranscript  = null;
-        let lastDuration    = null;
-        let excludedTracks  = new Set();
-        let audioCtx        = null;
-        let videoGainNode   = null;
-        const videoEl = document.getElementById('videoPlayer');
+      // dB caps from original: video -6 dB ≈ 0.501, music -12 dB ≈ 0.251
+      const VIDEO_MAX = Math.pow(10, -6  / 20);
+      const MUSIC_MAX = Math.pow(10, -12 / 20);
 
-        // ── Render auth header ──────────────────────────────────────────
-        document.getElementById('spotifyAuth').innerHTML = token
-            ? `<span class="connected-status">&#10003; Spotify Connected</span>
-               <a href="/logout" class="logout-btn">Disconnect</a>`
-            : `<a href="/login" class="connect-btn">Connect Spotify</a>`;
+      // ── State ──────────────────────────────────────────────────────
+      let currentVideoFile = null;
+      let videoBlobUrl     = null;
+      let lastTranscript   = null;
+      let lastDuration     = null;
+      let excludedTracks   = new Set();
+      let spotifyPlayer    = null;
+      let spotifyDeviceId  = null;
+      let currentUri       = null;
+      let currentPlayBtn   = null;
+      let currentCard      = null;
+      let audioCtx         = null;
+      let videoGainNode    = null;
+      let syncingPlayback  = false;
+      let songDurationMs   = 0;
+      let isSeeking        = false;
+      let seekPollTimer    = null;
 
-        // ── Spotify Web Playback SDK ────────────────────────────────────
-        window.onSpotifyWebPlaybackSDKReady = () => {
-            if (!token) return;
-            spotifyPlayer = new Spotify.Player({
-                name: 'Video Vibe',
-                getOAuthToken: cb => cb(token),
-                volume: MUSIC_MAX,
-            });
-            spotifyPlayer.addListener('ready', ({ device_id }) => {
-                spotifyDeviceId = device_id;
-            });
-            spotifyPlayer.addListener('player_state_changed', state => {
-                if (!state || !currentPlayBtn) return;
-                currentPlayBtn.innerHTML = state.paused ? '&#9654;' : '&#9646;&#9646;';
-            });
-            spotifyPlayer.connect();
-        };
+      // ── DOM refs ───────────────────────────────────────────────────
+      const screens = {
+        gate:    document.getElementById('screen-gate'),
+        upload:  document.getElementById('screen-upload'),
+        loading: document.getElementById('screen-loading'),
+        results: document.getElementById('screen-results')
+      };
 
-        // ── Web Audio for video ─────────────────────────────────────────
-        function initAudio() {
-            if (audioCtx) { audioCtx.resume(); return; }
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const src = audioCtx.createMediaElementSource(videoEl);
-            videoGainNode = audioCtx.createGain();
-            videoGainNode.gain.value = VIDEO_MAX * parseFloat(videoVolSlider.value);
-            src.connect(videoGainNode);
-            videoGainNode.connect(audioCtx.destination);
+      const fileInput      = document.getElementById('fileInput');
+      const dropZone       = document.getElementById('dropZone');
+      const uploadPrompt   = document.getElementById('uploadPrompt');
+      const filePreview    = document.getElementById('filePreview');
+      const fileNameDisplay = document.getElementById('fileName');
+      const fileSizeDisplay = document.getElementById('fileSize');
+      const analyzeBtn     = document.getElementById('analyzeBtn');
+      const errorMsg       = document.getElementById('errorMsg');
+      const statusText     = document.getElementById('statusText');
+      const progressFill   = document.getElementById('progressFill');
+      const transcriptText = document.getElementById('transcriptText');
+      const vibeRead       = document.getElementById('vibeRead');
+      const videoEl        = document.getElementById('videoPlayer');
+      const videoVolSlider = document.getElementById('videoVolume');
+      const musicVolSlider = document.getElementById('musicVolume');
+      const videoVolPct    = document.getElementById('videoVolPct');
+      const musicVolPct    = document.getElementById('musicVolPct');
+      const songScrubber   = document.getElementById('songScrubber');
+      const songTime       = document.getElementById('songTime');
+      const tracksGrid     = document.getElementById('tracksGrid');
+      const rerollBtn      = document.getElementById('rerollBtn');
+      const resetBtn       = document.getElementById('resetBtn');
+      const cursorGlow     = document.getElementById('cursorGlow');
+
+      // ── Init ───────────────────────────────────────────────────────
+      function init() {
+        if (token && token.length > 0) {
+          showScreen('upload');
+        } else {
+          showScreen('gate');
         }
-        // ── Sync video play/pause with Spotify ──────────────────────────
-        let syncingPlayback = false;
+        setupEventListeners();
+        setupCursorGlow();
+      }
 
-        videoEl.addEventListener('play', async () => {
-            initAudio();
-            if (syncingPlayback || !currentUri || !spotifyPlayer) return;
-            syncingPlayback = true;
-            try { await spotifyPlayer.resume(); } catch {}
-            syncingPlayback = false;
-            startSeekPoll();
+      function setupCursorGlow() {
+        document.addEventListener('mousemove', (e) => {
+          cursorGlow.style.opacity = '1';
+          cursorGlow.style.left = e.clientX + 'px';
+          cursorGlow.style.top = e.clientY + 'px';
+        });
+        document.addEventListener('mouseleave', () => {
+          cursorGlow.style.opacity = '0';
+        });
+      }
+
+      function showScreen(id) {
+        Object.values(screens).forEach(s => {
+          s.classList.remove('active');
+          s.style.pointerEvents = 'none';
+        });
+        setTimeout(() => {
+          screens[id].classList.add('active');
+          screens[id].style.pointerEvents = 'all';
+        }, 50);
+      }
+
+      // ── Spotify Web Playback SDK ───────────────────────────────────
+      window.onSpotifyWebPlaybackSDKReady = () => {
+        if (!token) return;
+        spotifyPlayer = new Spotify.Player({
+          name: 'Resonance',
+          getOAuthToken: cb => cb(token),
+          volume: MUSIC_MAX,
+        });
+        spotifyPlayer.addListener('ready', ({ device_id }) => {
+          spotifyDeviceId = device_id;
+        });
+        spotifyPlayer.addListener('player_state_changed', state => {
+          if (!state || !currentPlayBtn) return;
+          currentPlayBtn.innerHTML = state.paused ? '&#9654;' : '&#9646;&#9646;';
+        });
+        spotifyPlayer.connect();
+      };
+
+      // ── Web Audio for video volume control ─────────────────────────
+      function initAudio() {
+        if (audioCtx) { audioCtx.resume(); return; }
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const src = audioCtx.createMediaElementSource(videoEl);
+        videoGainNode = audioCtx.createGain();
+        videoGainNode.gain.value = VIDEO_MAX * parseFloat(videoVolSlider.value);
+        src.connect(videoGainNode);
+        videoGainNode.connect(audioCtx.destination);
+      }
+
+      // ── Sync video play/pause with Spotify ─────────────────────────
+      videoEl.addEventListener('play', async () => {
+        initAudio();
+        if (syncingPlayback || !currentUri || !spotifyPlayer) return;
+        syncingPlayback = true;
+        try { await spotifyPlayer.resume(); } catch {}
+        syncingPlayback = false;
+        startSeekPoll();
+      });
+
+      videoEl.addEventListener('pause', async () => {
+        if (syncingPlayback || !currentUri || !spotifyPlayer) return;
+        syncingPlayback = true;
+        try { await spotifyPlayer.pause(); } catch {}
+        syncingPlayback = false;
+      });
+
+      // ── Seek polling ───────────────────────────────────────────────
+      function formatTime(ms) {
+        const s = Math.floor(ms / 1000);
+        return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+      }
+
+      function startSeekPoll() {
+        if (seekPollTimer) return;
+        seekPollTimer = setInterval(async () => {
+          if (isSeeking || !spotifyPlayer || !currentUri) return;
+          const state = await spotifyPlayer.getCurrentState().catch(() => null);
+          if (!state) return;
+          const pos = state.position;
+          const dur = state.duration || songDurationMs;
+          if (dur > 0) {
+            songScrubber.value = Math.round((pos / dur) * 1000);
+            songTime.textContent = formatTime(pos) + ' / ' + formatTime(dur);
+          }
+        }, 500);
+      }
+
+      function stopSeekPoll() {
+        clearInterval(seekPollTimer);
+        seekPollTimer = null;
+      }
+
+      // ── Event listeners ────────────────────────────────────────────
+      function setupEventListeners() {
+        // Drop zone
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => {
+          dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          dropZone.classList.remove('dragover');
+          if (e.dataTransfer.files.length) handleFileSelect(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => {
+          if (e.target.files.length) handleFileSelect(e.target.files[0]);
         });
 
-        videoEl.addEventListener('pause', async () => {
-            if (syncingPlayback || !currentUri || !spotifyPlayer) return;
-            syncingPlayback = true;
-            try { await spotifyPlayer.pause(); } catch {}
-            syncingPlayback = false;
+        // Analyze button
+        analyzeBtn.addEventListener('click', () => {
+          if (currentVideoFile) analyzeVideo(currentVideoFile);
         });
 
-        // ── Volume sliders ──────────────────────────────────────────────
-        const videoVolSlider = document.getElementById('videoVolume');
-        const musicVolSlider = document.getElementById('musicVolume');
-        const videoVolPct    = document.getElementById('videoVolPct');
-        const musicVolPct    = document.getElementById('musicVolPct');
-
+        // Volume sliders
         videoVolSlider.addEventListener('input', () => {
-            const v = parseFloat(videoVolSlider.value);
-            if (videoGainNode) videoGainNode.gain.value = VIDEO_MAX * v;
-            videoVolPct.textContent = Math.round(v * 100) + '%';
+          const v = parseFloat(videoVolSlider.value);
+          if (videoGainNode) videoGainNode.gain.value = VIDEO_MAX * v;
+          videoVolPct.textContent = Math.round(v * 100) + '%';
         });
+
         musicVolSlider.addEventListener('input', () => {
-            const v = parseFloat(musicVolSlider.value);
-            if (spotifyPlayer) spotifyPlayer.setVolume(MUSIC_MAX * v);
-            musicVolPct.textContent = Math.round(v * 100) + '%';
+          const v = parseFloat(musicVolSlider.value);
+          if (spotifyPlayer) spotifyPlayer.setVolume(MUSIC_MAX * v);
+          musicVolPct.textContent = Math.round(v * 100) + '%';
         });
 
-        // ── Song scrubber ────────────────────────────────────────────────
-        let songDurationMs = 0;
-        let isSeeking      = false;
-        let seekPollTimer  = null;
-        const songScrubRow = document.getElementById('songScrubRow');
-        const songScrubber = document.getElementById('songScrubber');
-        const songTime     = document.getElementById('songTime');
-
-        function formatTime(ms) {
-            const s = Math.floor(ms / 1000);
-            return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-        }
-
-        function startSeekPoll() {
-            if (seekPollTimer) return;
-            seekPollTimer = setInterval(async () => {
-                if (isSeeking || !spotifyPlayer || !currentUri) return;
-                const state = await spotifyPlayer.getCurrentState().catch(() => null);
-                if (!state) return;
-                const pos = state.position;
-                const dur = state.duration || songDurationMs;
-                if (dur > 0) {
-                    songScrubber.value = Math.round((pos / dur) * 1000);
-                    songTime.textContent = formatTime(pos) + ' / ' + formatTime(dur);
-                }
-            }, 500);
-        }
-
-        function stopSeekPoll() {
-            clearInterval(seekPollTimer);
-            seekPollTimer = null;
-        }
-
+        // Song scrubber
         songScrubber.addEventListener('mousedown',  () => { isSeeking = true; });
         songScrubber.addEventListener('touchstart', () => { isSeeking = true; }, { passive: true });
         songScrubber.addEventListener('input', () => {
-            if (songDurationMs > 0) {
-                const pos = (parseInt(songScrubber.value) / 1000) * songDurationMs;
-                songTime.textContent = formatTime(pos) + ' / ' + formatTime(songDurationMs);
-            }
+          if (songDurationMs > 0) {
+            const pos = (parseInt(songScrubber.value) / 1000) * songDurationMs;
+            songTime.textContent = formatTime(pos) + ' / ' + formatTime(songDurationMs);
+          }
         });
         songScrubber.addEventListener('change', async () => {
-            isSeeking = false;
-            if (!spotifyPlayer || !currentUri || songDurationMs <= 0) return;
-            const pos = Math.round((parseInt(songScrubber.value) / 1000) * songDurationMs);
-            await spotifyPlayer.seek(pos).catch(() => {});
+          isSeeking = false;
+          if (!spotifyPlayer || !currentUri || songDurationMs <= 0) return;
+          const pos = Math.round((parseInt(songScrubber.value) / 1000) * songDurationMs);
+          await spotifyPlayer.seek(pos).catch(() => {});
         });
 
-        // ── Upload ──────────────────────────────────────────────────────
-        const uploadZone = document.getElementById('uploadZone');
-        const fileInput  = document.getElementById('fileInput');
-        const fileName   = document.getElementById('fileName');
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        const loading    = document.getElementById('loading');
-        const statusText = document.getElementById('statusText');
-        const errorMsg   = document.getElementById('errorMsg');
-        const results    = document.getElementById('results');
-        const resetBtn   = document.getElementById('resetBtn');
-        let selectedFile = null;
+        // Reroll & reset
+        rerollBtn.addEventListener('click', rerollTracks);
+        resetBtn.addEventListener('click', resetApp);
+      }
 
-        uploadZone.addEventListener('click', () => fileInput.click());
-        uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
-        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-        uploadZone.addEventListener('drop', e => {
-            e.preventDefault(); uploadZone.classList.remove('dragover');
-            if (e.dataTransfer.files[0]) selectFile(e.dataTransfer.files[0]);
-        });
-        fileInput.addEventListener('change', () => { if (fileInput.files[0]) selectFile(fileInput.files[0]); });
-
-        function selectFile(file) {
-            if (!file.name.toLowerCase().endsWith('.mp4')) { showError('Please select an MP4 video file.'); return; }
-            if (file.size > 500 * 1024 * 1024) { showError('File too large. Max 500MB.'); return; }
-            selectedFile = file;
-            if (videoBlobUrl) URL.revokeObjectURL(videoBlobUrl);
-            videoBlobUrl = URL.createObjectURL(file);
-            fileName.textContent = file.name + ' (' + (file.size / 1048576).toFixed(1) + ' MB)';
-            analyzeBtn.style.display = 'block';
-            hideError();
+      // ── File handling ──────────────────────────────────────────────
+      function handleFileSelect(file) {
+        hideError();
+        if (file.type !== 'video/mp4' && !file.name.toLowerCase().endsWith('.mp4')) {
+          showError('Please upload an MP4 file.');
+          return;
+        }
+        if (file.size > 500 * 1024 * 1024) {
+          showError('File size exceeds 500MB.');
+          return;
         }
 
-        analyzeBtn.addEventListener('click', async () => {
-            if (!selectedFile) return;
-            analyzeBtn.disabled = true;
-            loading.style.display = 'block';
-            results.style.display = 'none';
-            hideError();
+        currentVideoFile = file;
+        fileNameDisplay.textContent = file.name;
+        fileSizeDisplay.textContent = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+        
+        uploadPrompt.style.display = 'none';
+        filePreview.style.display = 'flex';
+        analyzeBtn.style.display = 'inline-flex';
+      }
 
-            const progressFill = document.querySelector('.progress-fill');
-            progressFill.style.width = '0%';
-            statusText.textContent = 'Starting\u2026';
+      // ── Analyze: real SSE streaming from backend ───────────────────
+      async function analyzeVideo(file) {
+        showScreen('loading');
+        updateStatus('Uploading…', 2);
+        analyzeBtn.disabled = true;
 
-            try {
-                const fd = new FormData();
-                fd.append('video', selectedFile);
-                const resp = await fetch('/analyze', { method: 'POST', body: fd });
-                if (!resp.ok) {
-                    const err = await resp.json().catch(() => ({}));
-                    showError(err.error || 'Something went wrong.');
-                    loading.style.display = 'none';
-                    analyzeBtn.disabled = false;
-                    return;
-                }
+        try {
+          const fd = new FormData();
+          fd.append('video', file);
+          const resp = await fetch('/analyze', { method: 'POST', body: fd });
 
-                const reader = resp.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            showError(err.error || 'Something went wrong.');
+            showScreen('upload');
+            analyzeBtn.disabled = false;
+            return;
+          }
 
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    buffer += decoder.decode(value, { stream: true });
-                    const parts = buffer.split('\n\n');
-                    buffer = parts.pop();
-                    for (const part of parts) {
-                        if (!part.startsWith('data: ')) continue;
-                        const event = JSON.parse(part.slice(6));
-                        if (event.error) {
-                            showError(event.error);
-                            loading.style.display = 'none';
-                            analyzeBtn.disabled = false;
-                            progressFill.style.width = '0%';
-                            return;
-                        }
-                        if (event.message) statusText.textContent = event.message;
-                        if (event.progress != null) progressFill.style.width = event.progress + '%';
-                        if (event.done) {
-                            setTimeout(() => {
-                                loading.style.display = 'none';
-                                progressFill.style.width = '0%';
-                                analyzeBtn.disabled = false;
-                                renderResults(event);
-                            }, 400);
-                            return;
-                        }
-                    }
-                }
-            } catch {
-                showError('Connection failed. Is the server running?');
-                loading.style.display = 'none';
+          const reader = resp.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const parts = buffer.split('\n\n');
+            buffer = parts.pop();
+
+            for (const part of parts) {
+              if (!part.startsWith('data: ')) continue;
+              const event = JSON.parse(part.slice(6));
+
+              if (event.error) {
+                showError(event.error);
+                showScreen('upload');
                 analyzeBtn.disabled = false;
                 progressFill.style.width = '0%';
+                return;
+              }
+
+              if (event.message) updateStatus(event.message, event.progress || 0);
+              if (event.progress != null) progressFill.style.width = event.progress + '%';
+
+              if (event.done) {
+                setTimeout(() => {
+                  analyzeBtn.disabled = false;
+                  progressFill.style.width = '0%';
+                  renderResults(event);
+                }, 400);
+                return;
+              }
             }
-        });
+          }
+        } catch (e) {
+          showError('Connection failed. Is the server running?');
+          showScreen('upload');
+          analyzeBtn.disabled = false;
+          progressFill.style.width = '0%';
+        }
+      }
 
-        function renderResults(data) {
-            document.getElementById('transcriptText').textContent = data.transcript;
-            document.getElementById('vibeRead').textContent = data.vibe_read || '';
+      function updateStatus(msg, progress) {
+        statusText.textContent = msg;
+        if (progress != null) progressFill.style.width = progress + '%';
+      }
 
-            if (videoBlobUrl) {
-                videoEl.src = videoBlobUrl;
-                document.getElementById('playerSection').style.display = 'block';
-            }
+      // ── Render results ─────────────────────────────────────────────
+      function renderResults(data) {
+        transcriptText.textContent = data.transcript;
+        vibeRead.textContent = data.vibe_read || '';
 
-            lastTranscript = data.transcript;
-            lastDuration   = data.duration || null;
-            excludedTracks = new Set();
+        if (videoBlobUrl) URL.revokeObjectURL(videoBlobUrl);
+        videoBlobUrl = URL.createObjectURL(currentVideoFile);
+        videoEl.src = videoBlobUrl;
 
-            renderTracks(data.tracks);
-            document.getElementById('rerollBtn').style.display = 'inline-block';
-            results.style.display = 'block';
+        lastTranscript = data.transcript;
+        lastDuration   = data.duration || null;
+        excludedTracks = new Set();
+
+        renderTracks(data.tracks);
+        showScreen('results');
+      }
+
+      // ── Render tracks with real Spotify playback ───────────────────
+      function renderTracks(tracks) {
+        tracks.forEach(t => excludedTracks.add(t.name));
+        tracksGrid.innerHTML = '';
+
+        for (const track of tracks) {
+          const art = track.album_art || '';
+          const card = document.createElement('div');
+          card.className = 'track-card';
+          card.innerHTML = `
+            ${art ? `<img src="${escHtml(art)}" class="track-art" alt="Album art">` : '<div class="track-art"></div>'}
+            <div class="track-main">
+              <span class="name">${escHtml(track.name)}</span>
+              <span class="artist">${escHtml(track.artist)}</span>
+              <span class="genre">${escHtml(track.genre || '')}</span>
+              <p class="reason">${escHtml(track.reason || '')}</p>
+            </div>
+            <button class="play-btn" data-uri="${escHtml(track.uri)}" data-duration="${track.duration_ms || 0}">&#9654;</button>
+            <div class="scrub-container">
+              <input type="range" class="scrub-slider" min="0" max="1000" value="0">
+              <div class="time-info">
+                <span class="scrub-time">0:00</span>
+                <span class="scrub-duration">${formatTime(track.duration_ms || 0)}</span>
+              </div>
+            </div>
+          `;
+          tracksGrid.appendChild(card);
         }
 
-        function renderTracks(tracks) {
-            tracks.forEach(t => excludedTracks.add(t.name));
+        // Wire up play buttons
+        tracksGrid.querySelectorAll('.play-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!token) { showError('Connect Spotify to play songs.'); return; }
+            if (!spotifyDeviceId) { showError('Spotify is initializing — try again in a moment.'); return; }
 
-            const grid = document.getElementById('tracksGrid');
-            grid.innerHTML = '';
-            for (const track of tracks) {
-                const art = track.album_art || '';
-                grid.innerHTML += `<div class="track-card">
-                    ${art ? `<img src="${art}" alt="Album art">` : ''}
-                    <div class="track-info">
-                        <div class="name">${escHtml(track.name)}</div>
-                        <div class="artist">${escHtml(track.artist)}</div>
-                        <div class="genre">${escHtml(track.genre || '')}</div>
-                        <div class="reason">${escHtml(track.reason || '')}</div>
-                    </div>
-                    <button class="play-btn" data-uri="${track.uri}" data-duration="${track.duration_ms||0}">&#9654;</button>
-                </div>`;
+            const uri  = btn.dataset.uri;
+            const card = btn.closest('.track-card');
+
+            if (uri === currentUri) {
+              // Toggle play/pause
+              syncingPlayback = true;
+              const state = await spotifyPlayer.getCurrentState().catch(() => null);
+              const paused = !state || state.paused;
+              try {
+                if (paused) {
+                  await spotifyPlayer.resume();
+                  await videoEl.play();
+                  startSeekPoll();
+                } else {
+                  await spotifyPlayer.pause();
+                  videoEl.pause();
+                }
+              } catch {}
+              syncingPlayback = false;
+            } else {
+              // New song
+              if (currentPlayBtn) currentPlayBtn.innerHTML = '&#9654;';
+              if (currentCard) currentCard.classList.remove('playing');
+              stopSeekPoll();
+
+              currentUri     = uri;
+              currentPlayBtn = btn;
+              currentCard    = card;
+              songDurationMs = parseInt(btn.dataset.duration) || 0;
+              btn.innerHTML  = '&#9646;&#9646;';
+              card.classList.add('playing');
+
+              // Reset scrubber
+              songScrubber.value = 0;
+              songTime.textContent = '0:00 / ' + formatTime(songDurationMs);
+
+              const playResp = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uris: [uri] }),
+              });
+
+              if (!playResp.ok) {
+                const err = await playResp.json().catch(() => ({}));
+                showError('Spotify: ' + (err.error?.message || 'Playback failed. Make sure you have Spotify Premium.'));
+                btn.innerHTML = '&#9654;';
+                card.classList.remove('playing');
+                currentUri = null; currentPlayBtn = null; currentCard = null;
+                return;
+              }
+
+              spotifyPlayer.setVolume(MUSIC_MAX * parseFloat(musicVolSlider.value));
+              syncingPlayback = true;
+              videoEl.currentTime = 0;
+              await videoEl.play().catch(() => {});
+              syncingPlayback = false;
+              startSeekPoll();
             }
+          });
+        });
+      }
 
-            grid.querySelectorAll('.play-btn').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    if (!token) { showError('Connect Spotify at the top to play songs.'); return; }
-                    if (!spotifyDeviceId) { showError('Spotify is initializing — try again in a moment.'); return; }
+      // ── Reroll: real API call ──────────────────────────────────────
+      async function rerollTracks() {
+        if (!lastTranscript) return;
+        const origHTML = rerollBtn.innerHTML;
+        rerollBtn.disabled = true;
+        rerollBtn.textContent = 'Finding…';
 
-                    const uri = btn.dataset.uri;
-                    if (uri === currentUri) {
-                        // Toggle both video and Spotify together
-                        syncingPlayback = true;
-                        const state = await spotifyPlayer.getCurrentState().catch(() => null);
-                        const paused = !state || state.paused;
-                        try {
-                            if (paused) {
-                                await spotifyPlayer.resume();
-                                await videoEl.play();
-                                startSeekPoll();
-                            } else {
-                                await spotifyPlayer.pause();
-                                videoEl.pause();
-                            }
-                        } catch {}
-                        syncingPlayback = false;
-                    } else {
-                        // New song selected
-                        if (currentPlayBtn) currentPlayBtn.innerHTML = '&#9654;';
-                        stopSeekPoll();
-                        currentUri     = uri;
-                        currentPlayBtn = btn;
-                        songDurationMs = parseInt(btn.dataset.duration) || 0;
-                        btn.innerHTML  = '&#9646;&#9646;';
-
-                        // Show and reset scrubber
-                        songScrubRow.style.display = '';
-                        songScrubber.value = 0;
-                        songTime.textContent = '0:00 / ' + formatTime(songDurationMs);
-
-                        const playResp = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
-                            method: 'PUT',
-                            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ uris: [uri] }),
-                        });
-                        if (!playResp.ok) {
-                            const err = await playResp.json().catch(() => ({}));
-                            showError('Spotify: ' + (err.error?.message || 'Playback failed. Make sure you have Spotify Premium.'));
-                            btn.innerHTML = '&#9654;';
-                            currentUri = null; currentPlayBtn = null;
-                            songScrubRow.style.display = 'none';
-                            return;
-                        }
-                        spotifyPlayer.setVolume(MUSIC_MAX * parseFloat(musicVolSlider.value));
-                        syncingPlayback = true;
-                        videoEl.currentTime = 0;
-                        await videoEl.play().catch(() => {});
-                        syncingPlayback = false;
-                        startSeekPoll();
-                    }
-                });
-            });
+        try {
+          const resp = await fetch('/reroll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              transcript: lastTranscript,
+              duration: lastDuration,
+              exclude: [...excludedTracks]
+            }),
+          });
+          const data = await resp.json();
+          if (!resp.ok) { showError(data.error || 'Reroll failed.'); return; }
+          renderTracks(data.tracks);
+        } catch {
+          showError('Reroll failed — is the server running?');
+        } finally {
+          rerollBtn.disabled = false;
+          rerollBtn.innerHTML = origHTML;
         }
+      }
 
-        const rerollBtn = document.getElementById('rerollBtn');
-        rerollBtn.addEventListener('click', async () => {
-            if (!lastTranscript) return;
-            const origHTML = rerollBtn.innerHTML;
-            rerollBtn.disabled = true;
-            rerollBtn.innerHTML = 'Finding\u2026';
-            try {
-                const resp = await fetch('/reroll', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ transcript: lastTranscript, duration: lastDuration, exclude: [...excludedTracks] }),
-                });
-                const data = await resp.json();
-                if (!resp.ok) { showError(data.error || 'Reroll failed.'); return; }
-                renderTracks(data.tracks);
-            } catch {
-                showError('Reroll failed — is the server running?');
-            } finally {
-                rerollBtn.disabled = false;
-                rerollBtn.innerHTML = origHTML;
-            }
-        });
+      // ── Reset ──────────────────────────────────────────────────────
+      function resetApp() {
+        stopSeekPoll();
+        if (spotifyPlayer) spotifyPlayer.pause();
+        if (currentPlayBtn) { currentPlayBtn.innerHTML = '&#9654;'; currentPlayBtn = null; }
+        if (currentCard) { currentCard.classList.remove('playing'); currentCard = null; }
+        currentUri = null;
+        songDurationMs = 0;
+        songScrubber.value = 0;
+        songTime.textContent = '0:00';
+        videoEl.pause();
+        videoEl.src = '';
+        currentVideoFile = null;
+        if (videoBlobUrl) { URL.revokeObjectURL(videoBlobUrl); videoBlobUrl = null; }
+        uploadPrompt.style.display = 'block';
+        filePreview.style.display = 'none';
+        analyzeBtn.style.display = 'none';
+        fileInput.value = '';
+        lastTranscript = null;
+        lastDuration = null;
+        excludedTracks = new Set();
+        showScreen('upload');
+      }
 
-        function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-        function showError(m) { errorMsg.textContent = m; errorMsg.style.display = 'block'; }
-        function hideError() { errorMsg.style.display = 'none'; }
+      // ── Helpers ────────────────────────────────────────────────────
+      function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+      function showError(m) { errorMsg.textContent = m; errorMsg.style.display = 'block'; setTimeout(hideError, 4000); }
+      function hideError() { errorMsg.style.display = 'none'; }
 
-        resetBtn.addEventListener('click', () => {
-            stopSeekPoll();
-            if (spotifyPlayer) spotifyPlayer.pause();
-            if (currentPlayBtn) { currentPlayBtn.innerHTML = '&#9654;'; currentPlayBtn = null; }
-            currentUri = null;
-            songDurationMs = 0;
-            songScrubRow.style.display = 'none';
-            songScrubber.value = 0;
-            videoEl.pause(); videoEl.src = '';
-            document.getElementById('playerSection').style.display = 'none';
-            results.style.display = 'none';
-            selectedFile = null;
-            if (videoBlobUrl) { URL.revokeObjectURL(videoBlobUrl); videoBlobUrl = null; }
-            fileName.textContent = '';
-            analyzeBtn.style.display = 'none';
-            fileInput.value = '';
-            lastTranscript = null;
-            lastDuration = null;
-            excludedTracks = new Set();
-            document.getElementById('rerollBtn').style.display = 'none';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
+      // ── Boot ───────────────────────────────────────────────────────
+      init();
     </script>
-</body>
+  </body>
 </html>
