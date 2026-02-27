@@ -898,16 +898,15 @@
 
         <div class="results-sidebar">
           <div class="card-glass">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
               <span class="label-micro" style="margin-bottom: 0;">Suggested Tracks</span>
               <button id="rerollBtn" class="btn btn-glass" style="padding: 8px 16px; font-size: 11px;">&#8635;&nbsp;&nbsp;5 more</button>
             </div>
+            <!-- Export trigger button -->
+            <div id="exportArea" style="display: none; margin-bottom: 20px;">
+              <button id="exportTriggerBtn" class="btn" style="width: 100%;">Export with Instrumental</button>
+            </div>
             <div id="tracksGrid"></div>
-          </div>
-
-          <!-- Export trigger button -->
-          <div id="exportArea" style="display: none; margin-top: 16px;">
-            <button id="exportTriggerBtn" class="btn" style="width: 100%;">Export with Instrumental</button>
           </div>
         </div>
       </div>
