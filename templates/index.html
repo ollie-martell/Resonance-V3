@@ -730,6 +730,127 @@
         margin-top: 8px;
         text-align: center;
       }
+      /* ── Mobile ───────────────────────────────────────── */
+      @media (max-width: 768px) {
+        body {
+          overflow: auto;
+          height: auto;
+        }
+
+        .screen {
+          padding: 0 16px;
+        }
+
+        /* Gate */
+        .gate-title {
+          font-size: 48px;
+        }
+
+        .gate-logo {
+          height: 40px;
+          gap: 4px;
+        }
+
+        .gate-logo .bar {
+          width: 4px;
+        }
+
+        .gate-tagline {
+          font-size: 15px;
+          margin-bottom: 32px;
+        }
+
+        .gate-title-row {
+          gap: 12px;
+          margin-bottom: 24px;
+        }
+
+        /* Upload */
+        .upload-title {
+          font-size: 28px;
+        }
+
+        .drop-surface {
+          height: 280px;
+          border-radius: 24px;
+        }
+
+        header {
+          height: 70px;
+        }
+
+        /* Loading */
+        .loading-visual {
+          width: 250px;
+          height: 250px;
+        }
+
+        .loading-visual .logo-mark {
+          height: 80px;
+          gap: 6px;
+        }
+
+        .loading-visual .logo-mark .bar {
+          width: 6px;
+        }
+
+        .ring:nth-child(1) { width: 70px; height: 70px; }
+        .ring:nth-child(2) { width: 140px; height: 140px; }
+        .ring:nth-child(3) { width: 210px; height: 210px; }
+
+        /* Results */
+        #screen-results {
+          overflow-y: auto;
+          height: auto;
+        }
+
+        .results-layout {
+          grid-template-columns: 1fr;
+          gap: 32px;
+        }
+
+        .card-glass {
+          padding: 20px;
+          border-radius: 20px;
+        }
+
+        .card-glass:hover {
+          transform: none;
+        }
+
+        .player-layout {
+          flex-direction: column;
+          max-height: none;
+        }
+
+        .player-wrap {
+          width: 100%;
+        }
+
+        .controls-panel {
+          width: 100%;
+        }
+
+        .controls-grid {
+          gap: 16px;
+        }
+
+        /* Track cards */
+        .track-card {
+          grid-template-columns: 48px 1fr 36px;
+          gap: 12px;
+          padding: 14px;
+        }
+
+        .track-art {
+          width: 48px;
+          height: 48px;
+        }
+
+        .results-footer {
+          padding: 40px 0;
+        }
+      }
     </style>
   </head>
   <body>
