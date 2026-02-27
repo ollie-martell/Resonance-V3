@@ -980,6 +980,7 @@
 
       // Export state
       let lastVideoId          = null;
+      let lastVideoFileName    = '';
       let instrAudioEl         = null;
       let instrGainNode        = null;
       let currentInstrId       = null;
@@ -1314,6 +1315,7 @@
         lastTranscript = data.transcript;
         lastDuration   = data.duration || null;
         lastVideoId    = data.video_id || null;
+        lastVideoFileName = (currentVideoFile?.name || '').replace(/\.mp4$/i, '');
         excludedTracks = new Set();
 
         renderTracks(data.tracks);
@@ -1707,7 +1709,8 @@
               exportProgressFill.style.width = '100%';
               exportStatusText.textContent = 'Download starting…';
               // Trigger download
-              window.location = '/download/' + event.export_id;
+              const dlName = lastVideoFileName ? encodeURIComponent(lastVideoFileName + '_resonance.mp4') : '';
+              window.location = '/download/' + event.export_id + (dlName ? '?name=' + dlName : '');
               // Clean up server video
               if (lastVideoId) {
                 fetch('/cleanup/' + lastVideoId, { method: 'POST' }).catch(() => {});

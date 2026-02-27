@@ -274,10 +274,11 @@ def download_export(export_id):
             pass
         return response
 
+    name = request.args.get("name", f"resonance_{export_id[:8]}.mp4")
     return send_file(
         path,
         as_attachment=True,
-        download_name=f"resonance_{export_id[:8]}.mp4",
+        download_name=name,
     )
 
 
