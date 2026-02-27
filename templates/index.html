@@ -123,6 +123,16 @@
                         <input type="range" class="vol-slider" id="musicVolume" min="0" max="1" step="0.01" value="1">
                         <span class="vol-pct" id="musicVolPct">100%</span>
                     </div>
+                    <div class="volume-row" id="songScrubRow" style="display:none">
+                        <span class="vol-label">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="3" y1="12" x2="21" y2="12"/><circle cx="8" cy="12" r="2.5" fill="rgba(255,255,255,0.75)" stroke="none"/>
+                            </svg>
+                            Song
+                        </span>
+                        <input type="range" class="vol-slider" id="songScrubber" min="0" max="1000" step="1" value="0">
+                        <span class="vol-pct" id="songTime" style="min-width:76px">0:00 / 0:00</span>
+                    </div>
                 </div>
                 <div id="embed-iframe"></div>
             </div>
@@ -199,7 +209,24 @@
             src.connect(videoGainNode);
             videoGainNode.connect(audioCtx.destination);
         }
-        videoEl.addEventListener('play', initAudio);
+        // ── Sync video play/pause with Spotify ──────────────────────────
+        let syncingPlayback = false;
+
+        videoEl.addEventListener('play', async () => {
+            initAudio();
+            if (syncingPlayback || !currentUri || !spotifyPlayer) return;
+            syncingPlayback = true;
+            try { await spotifyPlayer.resume(); } catch {}
+            syncingPlayback = false;
+            startSeekPoll();
+        });
+
+        videoEl.addEventListener('pause', async () => {
+            if (syncingPlayback || !currentUri || !spotifyPlayer) return;
+            syncingPlayback = true;
+            try { await spotifyPlayer.pause(); } catch {}
+            syncingPlayback = false;
+        });
 
         // ── Volume sliders ──────────────────────────────────────────────
         const videoVolSlider = document.getElementById('videoVolume');
@@ -216,6 +243,54 @@
             const v = parseFloat(musicVolSlider.value);
             if (spotifyPlayer) spotifyPlayer.setVolume(MUSIC_MAX * v);
             musicVolPct.textContent = Math.round(v * 100) + '%';
+        });
+
+        // ── Song scrubber ────────────────────────────────────────────────
+        let songDurationMs = 0;
+        let isSeeking      = false;
+        let seekPollTimer  = null;
+        const songScrubRow = document.getElementById('songScrubRow');
+        const songScrubber = document.getElementById('songScrubber');
+        const songTime     = document.getElementById('songTime');
+
+        function formatTime(ms) {
+            const s = Math.floor(ms / 1000);
+            return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+        }
+
+        function startSeekPoll() {
+            if (seekPollTimer) return;
+            seekPollTimer = setInterval(async () => {
+                if (isSeeking || !spotifyPlayer || !currentUri) return;
+                const state = await spotifyPlayer.getCurrentState().catch(() => null);
+                if (!state) return;
+                const pos = state.position;
+                const dur = state.duration || songDurationMs;
+                if (dur > 0) {
+                    songScrubber.value = Math.round((pos / dur) * 1000);
+                    songTime.textContent = formatTime(pos) + ' / ' + formatTime(dur);
+                }
+            }, 500);
+        }
+
+        function stopSeekPoll() {
+            clearInterval(seekPollTimer);
+            seekPollTimer = null;
+        }
+
+        songScrubber.addEventListener('mousedown',  () => { isSeeking = true; });
+        songScrubber.addEventListener('touchstart', () => { isSeeking = true; }, { passive: true });
+        songScrubber.addEventListener('input', () => {
+            if (songDurationMs > 0) {
+                const pos = (parseInt(songScrubber.value) / 1000) * songDurationMs;
+                songTime.textContent = formatTime(pos) + ' / ' + formatTime(songDurationMs);
+            }
+        });
+        songScrubber.addEventListener('change', async () => {
+            isSeeking = false;
+            if (!spotifyPlayer || !currentUri || songDurationMs <= 0) return;
+            const pos = Math.round((parseInt(songScrubber.value) / 1000) * songDurationMs);
+            await spotifyPlayer.seek(pos).catch(() => {});
         });
 
         // ── Upload ──────────────────────────────────────────────────────
@@ -347,7 +422,7 @@
                         <div class="genre">${escHtml(track.genre || '')}</div>
                         <div class="reason">${escHtml(track.reason || '')}</div>
                     </div>
-                    <button class="play-btn" data-uri="${track.uri}">&#9654;</button>
+                    <button class="play-btn" data-uri="${track.uri}" data-duration="${track.duration_ms||0}">&#9654;</button>
                 </div>`;
             }
 
@@ -358,11 +433,35 @@
 
                     const uri = btn.dataset.uri;
                     if (uri === currentUri) {
-                        spotifyPlayer.togglePlay();
+                        // Toggle both video and Spotify together
+                        syncingPlayback = true;
+                        const state = await spotifyPlayer.getCurrentState().catch(() => null);
+                        const paused = !state || state.paused;
+                        try {
+                            if (paused) {
+                                await spotifyPlayer.resume();
+                                await videoEl.play();
+                                startSeekPoll();
+                            } else {
+                                await spotifyPlayer.pause();
+                                videoEl.pause();
+                            }
+                        } catch {}
+                        syncingPlayback = false;
                     } else {
+                        // New song selected
                         if (currentPlayBtn) currentPlayBtn.innerHTML = '&#9654;';
-                        currentUri = uri; currentPlayBtn = btn;
-                        btn.innerHTML = '&#9646;&#9646;';
+                        stopSeekPoll();
+                        currentUri     = uri;
+                        currentPlayBtn = btn;
+                        songDurationMs = parseInt(btn.dataset.duration) || 0;
+                        btn.innerHTML  = '&#9646;&#9646;';
+
+                        // Show and reset scrubber
+                        songScrubRow.style.display = '';
+                        songScrubber.value = 0;
+                        songTime.textContent = '0:00 / ' + formatTime(songDurationMs);
+
                         const playResp = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
                             method: 'PUT',
                             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -373,11 +472,15 @@
                             showError('Spotify: ' + (err.error?.message || 'Playback failed. Make sure you have Spotify Premium.'));
                             btn.innerHTML = '&#9654;';
                             currentUri = null; currentPlayBtn = null;
+                            songScrubRow.style.display = 'none';
                             return;
                         }
                         spotifyPlayer.setVolume(MUSIC_MAX * parseFloat(musicVolSlider.value));
+                        syncingPlayback = true;
                         videoEl.currentTime = 0;
-                        videoEl.play().catch(() => {});
+                        await videoEl.play().catch(() => {});
+                        syncingPlayback = false;
+                        startSeekPoll();
                     }
                 });
             });
@@ -411,9 +514,13 @@
         function hideError() { errorMsg.style.display = 'none'; }
 
         resetBtn.addEventListener('click', () => {
+            stopSeekPoll();
             if (spotifyPlayer) spotifyPlayer.pause();
             if (currentPlayBtn) { currentPlayBtn.innerHTML = '&#9654;'; currentPlayBtn = null; }
             currentUri = null;
+            songDurationMs = 0;
+            songScrubRow.style.display = 'none';
+            songScrubber.value = 0;
             videoEl.pause(); videoEl.src = '';
             document.getElementById('playerSection').style.display = 'none';
             results.style.display = 'none';

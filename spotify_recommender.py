@@ -57,14 +57,15 @@ def recommend(track_suggestions):
                     pass
 
             tracks.append({
-                "name":      t["name"],
-                "artist":    ", ".join(a["name"] for a in t["artists"]),
-                "album":     t["album"]["name"],
-                "album_art": images[0]["url"] if images else None,
-                "url":       t["external_urls"].get("spotify", ""),
-                "uri":       t["uri"],
-                "genre":     genre,
-                "reason":    suggestion.get("reason", ""),
+                "name":        t["name"],
+                "artist":      ", ".join(a["name"] for a in t["artists"]),
+                "album":       t["album"]["name"],
+                "album_art":   images[0]["url"] if images else None,
+                "url":         t["external_urls"].get("spotify", ""),
+                "uri":         t["uri"],
+                "genre":       genre,
+                "reason":      suggestion.get("reason", ""),
+                "duration_ms": t.get("duration_ms", 0),
             })
 
     return tracks
