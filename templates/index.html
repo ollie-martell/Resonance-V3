@@ -681,62 +681,32 @@
         z-index: 1000;
       }
 
-      /* ── Export Panel ────────────────────────────────── */
-      #exportArea {
-        display: none;
-        margin-top: 32px;
-      }
-
+      /* ── Export Controls (inside video card) ──────────── */
       #exportTriggerBtn {
         background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
         color: white;
-        width: 100%;
       }
 
       #exportTriggerBtn:hover {
         box-shadow: 0 0 30px rgba(139, 92, 246, 0.4);
       }
 
-      #exportSettings {
-        display: none;
-        margin-top: 20px;
-        padding: 24px;
-        background: var(--glass-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 20px;
-        backdrop-filter: blur(20px);
-      }
-
-      .export-control {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-bottom: 16px;
-      }
-
-      .export-control-header {
-        display: flex;
-        justify-content: space-between;
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--text-muted);
-      }
-
-      #exportPreviewHint {
-        display: none;
+      #exportControls #exportPreviewHint {
+        grid-column: 1 / -1;
         font-size: 11px;
         color: var(--accent-primary);
         text-align: center;
-        margin-bottom: 12px;
+        margin: 4px 0 0;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.1em;
       }
 
-      .export-actions {
+      #exportControls .export-actions {
+        grid-column: 1 / -1;
         display: flex;
         gap: 12px;
-        margin-top: 8px;
+        margin-top: 4px;
       }
 
       #exportCancelBtn {
@@ -755,8 +725,9 @@
       }
 
       #exportProgress {
+        grid-column: 1 / -1;
         display: none;
-        margin-top: 16px;
+        margin-top: 4px;
       }
 
       #exportProgressFill {
@@ -895,7 +866,8 @@
             <div class="player-wrap">
               <video id="videoPlayer" controls></video>
             </div>
-            <div class="controls-grid">
+            <!-- Spotify controls (default) -->
+            <div id="spotifyControls" class="controls-grid">
               <div class="control-item">
                 <div class="control-header">
                   <span>Video Volume</span>
@@ -918,6 +890,42 @@
                 <input type="range" id="songScrubber" min="0" max="1000" step="1" value="0">
               </div>
             </div>
+
+            <!-- Export controls (shown when export preview is active) -->
+            <div id="exportControls" class="controls-grid" style="display: none;">
+              <div class="control-item">
+                <div class="control-header">
+                  <span>Video Audio</span>
+                  <span id="exportVideoVolPct">100%</span>
+                </div>
+                <input type="range" id="exportVideoVol" min="0" max="1" step="0.01" value="1">
+              </div>
+              <div class="control-item">
+                <div class="control-header">
+                  <span>Instrumental</span>
+                  <span id="exportMusicVolPct">100%</span>
+                </div>
+                <input type="range" id="exportMusicVol" min="0" max="1" step="0.01" value="1">
+              </div>
+              <div class="control-item">
+                <div class="control-header">
+                  <span>Starts at</span>
+                  <span id="exportStartTime">0:00</span>
+                </div>
+                <input type="range" id="exportScrubber" min="0" max="1000" step="1" value="0">
+              </div>
+              <p id="exportPreviewHint">Live preview — play video to hear mix</p>
+              <div class="export-actions">
+                <button id="exportCancelBtn" class="btn btn-glass">Cancel</button>
+                <button id="exportConfirmBtn" class="btn">Export Now</button>
+              </div>
+              <div id="exportProgress">
+                <div class="progress-rail">
+                  <div id="exportProgressFill"></div>
+                </div>
+                <p id="exportStatusText"></p>
+              </div>
+            </div>
           </div>
 
           <div class="card-glass">
@@ -935,43 +943,9 @@
             <div id="tracksGrid"></div>
           </div>
 
-          <!-- Export Area -->
-          <div id="exportArea">
-            <button id="exportTriggerBtn" class="btn">Export with Instrumental</button>
-            <div id="exportSettings">
-              <div class="export-control">
-                <div class="export-control-header">
-                  <span>Starts at</span>
-                  <span id="exportStartTime">0:00</span>
-                </div>
-                <input type="range" id="exportScrubber" min="0" max="1000" step="1" value="0">
-              </div>
-              <div class="export-control">
-                <div class="export-control-header">
-                  <span>Video audio</span>
-                  <span id="exportVideoVolPct">100%</span>
-                </div>
-                <input type="range" id="exportVideoVol" min="0" max="1" step="0.01" value="1">
-              </div>
-              <div class="export-control">
-                <div class="export-control-header">
-                  <span>Instrumental</span>
-                  <span id="exportMusicVolPct">100%</span>
-                </div>
-                <input type="range" id="exportMusicVol" min="0" max="1" step="0.01" value="1">
-              </div>
-              <p id="exportPreviewHint">Live preview active — play video to hear mix</p>
-              <div class="export-actions">
-                <button id="exportCancelBtn" class="btn btn-glass">Cancel</button>
-                <button id="exportConfirmBtn" class="btn">Export Now</button>
-              </div>
-              <div id="exportProgress">
-                <div class="progress-rail">
-                  <div id="exportProgressFill"></div>
-                </div>
-                <p id="exportStatusText"></p>
-              </div>
-            </div>
+          <!-- Export trigger button -->
+          <div id="exportArea" style="display: none; margin-top: 16px;">
+            <button id="exportTriggerBtn" class="btn" style="width: 100%;">Export with Instrumental</button>
           </div>
         </div>
       </div>
@@ -1059,9 +1033,10 @@
       const cursorGlow     = document.getElementById('cursorGlow');
 
       // Export DOM refs
+      const spotifyControls     = document.getElementById('spotifyControls');
+      const exportControls      = document.getElementById('exportControls');
       const exportArea          = document.getElementById('exportArea');
       const exportTriggerBtn    = document.getElementById('exportTriggerBtn');
-      const exportSettings      = document.getElementById('exportSettings');
       const exportScrubber      = document.getElementById('exportScrubber');
       const exportStartTime     = document.getElementById('exportStartTime');
       const exportVideoVolSlider = document.getElementById('exportVideoVol');
@@ -1530,8 +1505,10 @@
         if (spotifyPlayer) spotifyPlayer.pause().catch(() => {});
         syncingPlayback = false;
 
+        // Swap controls: hide Spotify, show export
+        spotifyControls.style.display = 'none';
+        exportControls.style.display = '';
         exportConfirmBtn.style.display = 'inline-flex';
-        exportPreviewHint.style.display = 'block';
         startExportPoll();
       }
 
@@ -1542,6 +1519,9 @@
         if (instrAudioEl)  { instrAudioEl.pause(); instrAudioEl.src = ''; instrAudioEl = null; }
         currentInstrId = null;
         exportInstrDurMs = 0;
+        // Swap controls back: show Spotify, hide export
+        exportControls.style.display = 'none';
+        spotifyControls.style.display = '';
         // Restore video gain to normal
         if (videoGainNode) {
           videoGainNode.gain.value = VIDEO_MAX * parseFloat(videoVolSlider.value);
@@ -1551,9 +1531,7 @@
       function resetExportPanel() {
         exitExportPreview();
         exportArea.style.display = 'none';
-        exportSettings.style.display = 'none';
         exportConfirmBtn.style.display = 'none';
-        exportPreviewHint.style.display = 'none';
         exportProgress.style.display = 'none';
         exportProgressFill.style.width = '0%';
         exportStatusText.textContent = '';
@@ -1584,15 +1562,15 @@
 
       // Export trigger button
       exportTriggerBtn.addEventListener('click', async () => {
-        exportSettings.style.display = 'block';
-
         // If we already have a cached instrumental for this song, go live immediately
         if (currentInstrId) {
           goLive();
           return;
         }
 
-        // Start downloading instrumental
+        // Swap to export controls and show download progress
+        spotifyControls.style.display = 'none';
+        exportControls.style.display = '';
         exportProgress.style.display = 'block';
         exportProgressFill.style.width = '0%';
         exportStatusText.textContent = 'Searching for instrumental…';
@@ -1613,7 +1591,8 @@
             if (event.error) {
               showError(event.error);
               exportProgress.style.display = 'none';
-              exportSettings.style.display = 'none';
+              exportControls.style.display = 'none';
+              spotifyControls.style.display = '';
               return;
             }
             if (event.progress) {
@@ -1644,6 +1623,8 @@
         } catch (e) {
           showError('Failed to prepare instrumental.');
           exportProgress.style.display = 'none';
+          exportControls.style.display = 'none';
+          spotifyControls.style.display = '';
         } finally {
           exportTriggerBtn.disabled = false;
         }
@@ -1678,14 +1659,15 @@
         exportMusicVolPct.textContent = Math.round(v * 100) + '%';
       });
 
-      // Cancel button — hides panel but keeps cached instrumental
+      // Cancel button — swaps back to Spotify controls but keeps cached instrumental
       exportCancelBtn.addEventListener('click', () => {
         exportPreviewMode = false;
         stopExportPoll();
         if (instrAudioEl) instrAudioEl.pause();
-        exportSettings.style.display = 'none';
+        // Swap controls back
+        exportControls.style.display = 'none';
+        spotifyControls.style.display = '';
         exportConfirmBtn.style.display = 'none';
-        exportPreviewHint.style.display = 'none';
         // Restore video gain
         if (videoGainNode) {
           videoGainNode.gain.value = VIDEO_MAX * parseFloat(videoVolSlider.value);
@@ -1750,7 +1732,8 @@
               }
               setTimeout(() => {
                 exportProgress.style.display = 'none';
-                exportSettings.style.display = 'none';
+                exportControls.style.display = 'none';
+                spotifyControls.style.display = '';
                 exportStatusText.textContent = '';
               }, 2000);
             }
