@@ -371,12 +371,6 @@
         box-shadow: 0 0 30px rgba(29, 185, 84, 0.3);
       }
 
-      #analyzeBtn {
-        margin-top: 64px;
-        display: none;
-        animation: fadeIn 0.5s ease forwards;
-      }
-
       @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
@@ -791,7 +785,6 @@
           <input type="file" id="fileInput" accept=".mp4" style="display: none;">
         </div>
 
-        <button id="analyzeBtn" class="btn">Analyze Vibe</button>
       </div>
     </div>
 
@@ -1001,7 +994,6 @@
       const filePreview    = document.getElementById('filePreview');
       const fileNameDisplay = document.getElementById('fileName');
       const fileSizeDisplay = document.getElementById('fileSize');
-      const analyzeBtn     = document.getElementById('analyzeBtn');
       const errorMsg       = document.getElementById('errorMsg');
       const statusText     = document.getElementById('statusText');
       const progressFill   = document.getElementById('progressFill');
@@ -1180,11 +1172,6 @@
           if (e.target.files.length) handleFileSelect(e.target.files[0]);
         });
 
-        // Analyze button
-        analyzeBtn.addEventListener('click', () => {
-          if (currentVideoFile) analyzeVideo(currentVideoFile);
-        });
-
         // Volume sliders
         videoVolSlider.addEventListener('input', () => {
           const v = parseFloat(videoVolSlider.value);
@@ -1232,19 +1219,14 @@
         }
 
         currentVideoFile = file;
-        fileNameDisplay.textContent = file.name;
-        fileSizeDisplay.textContent = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
-        
-        uploadPrompt.style.display = 'none';
-        filePreview.style.display = 'flex';
-        analyzeBtn.style.display = 'inline-flex';
+        analyzeVideo(file);
       }
 
       // ── Analyze: real SSE streaming from backend ───────────────────
       async function analyzeVideo(file) {
         showScreen('loading');
         updateStatus('Uploading…', 2);
-        analyzeBtn.disabled = true;
+
 
         try {
           const fd = new FormData();
@@ -1255,7 +1237,6 @@
             const err = await resp.json().catch(() => ({}));
             showError(err.error || 'Something went wrong.');
             showScreen('upload');
-            analyzeBtn.disabled = false;
             return;
           }
 
@@ -1277,7 +1258,7 @@
               if (event.error) {
                 showError(event.error);
                 showScreen('upload');
-                analyzeBtn.disabled = false;
+
                 progressFill.style.width = '0%';
                 return;
               }
@@ -1287,7 +1268,7 @@
 
               if (event.done) {
                 setTimeout(() => {
-                  analyzeBtn.disabled = false;
+  
                   progressFill.style.width = '0%';
                   renderResults(event);
                 }, 400);
@@ -1298,7 +1279,6 @@
         } catch (e) {
           showError('Connection failed. Is the server running?');
           showScreen('upload');
-          analyzeBtn.disabled = false;
           progressFill.style.width = '0%';
         }
       }
@@ -1765,7 +1745,6 @@
         if (videoBlobUrl) { URL.revokeObjectURL(videoBlobUrl); videoBlobUrl = null; }
         uploadPrompt.style.display = 'block';
         filePreview.style.display = 'none';
-        analyzeBtn.style.display = 'none';
         fileInput.value = '';
         lastTranscript = null;
         lastDuration = null;
