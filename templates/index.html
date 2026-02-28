@@ -1334,9 +1334,18 @@
           btn.addEventListener('click', async () => {
             if (!token) { showError('Connect Spotify to play songs.'); return; }
             if (!spotifyDeviceId) {
-              if (spotifyPlayer) spotifyPlayer.connect();
-              showError('Reconnecting to Spotify — try again in a moment.');
-              return;
+              if (!spotifyPlayer) return;
+              btn.disabled = true;
+              spotifyPlayer.connect();
+              // Wait up to 3s for the ready event to set spotifyDeviceId
+              for (let i = 0; i < 15 && !spotifyDeviceId; i++) {
+                await new Promise(r => setTimeout(r, 200));
+              }
+              btn.disabled = false;
+              if (!spotifyDeviceId) {
+                showError('Spotify connection lost — please refresh the page.');
+                return;
+              }
             }
 
             const uri  = btn.dataset.uri;
