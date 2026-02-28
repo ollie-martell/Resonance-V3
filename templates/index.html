@@ -1081,6 +1081,10 @@
         spotifyPlayer.addListener('ready', ({ device_id }) => {
           spotifyDeviceId = device_id;
         });
+        spotifyPlayer.addListener('not_ready', () => {
+          spotifyDeviceId = null;
+          spotifyPlayer.connect();
+        });
         spotifyPlayer.addListener('player_state_changed', state => {
           if (!state || !currentPlayBtn) return;
           currentPlayBtn.innerHTML = state.paused ? '&#9654;' : '&#9646;&#9646;';
@@ -1349,7 +1353,11 @@
         tracksGrid.querySelectorAll('.play-btn').forEach(btn => {
           btn.addEventListener('click', async () => {
             if (!token) { showError('Connect Spotify to play songs.'); return; }
-            if (!spotifyDeviceId) { showError('Spotify is initializing — try again in a moment.'); return; }
+            if (!spotifyDeviceId) {
+              if (spotifyPlayer) spotifyPlayer.connect();
+              showError('Reconnecting to Spotify — try again in a moment.');
+              return;
+            }
 
             const uri  = btn.dataset.uri;
             const card = btn.closest('.track-card');
