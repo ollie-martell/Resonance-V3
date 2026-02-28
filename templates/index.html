@@ -1709,16 +1709,25 @@
               // Trigger download
               const dlName = lastVideoFileName ? encodeURIComponent(lastVideoFileName + '_resonance.mp4') : '';
               window.location = '/download/' + event.export_id + (dlName ? '?name=' + dlName : '');
-              // Clean up server video
-              if (lastVideoId) {
-                fetch('/cleanup/' + lastVideoId, { method: 'POST' }).catch(() => {});
-                lastVideoId = null;
-              }
               setTimeout(() => {
+                // Reset export UI but keep everything else intact
+                exportPreviewMode = false;
+                stopExportPoll();
+                if (instrGainNode) { instrGainNode.disconnect(); instrGainNode = null; }
+                if (instrAudioEl) { instrAudioEl.pause(); instrAudioEl.src = ''; instrAudioEl = null; }
+                currentInstrId = null;
+                exportInstrDurMs = 0;
                 exportProgress.style.display = 'none';
                 exportControls.style.display = 'none';
+                exportConfirmBtn.style.display = 'none';
                 spotifyControls.style.display = '';
                 exportStatusText.textContent = '';
+                exportScrubber.value = 0;
+                exportStartTime.textContent = '0:00';
+                // Restore video gain
+                if (videoGainNode) {
+                  videoGainNode.gain.value = VIDEO_MAX * parseFloat(videoVolSlider.value);
+                }
               }, 2000);
             }
           });
