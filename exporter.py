@@ -87,10 +87,30 @@ def _download_entry(entry):
 
 # ── Main search + download ──────────────────────────────────────────────
 
+_STRIP_SUFFIXES = re.compile(
+    r"\s*[-–—]\s*("
+    r"bonus\s*track|deluxe(\s*edition)?|remaster(ed)?|anniversary(\s*edition)?|"
+    r"single(\s*version)?|album(\s*version)?|radio(\s*edit)?|explicit|clean|"
+    r"feat\.?\s*.+|ft\.?\s*.+"
+    r")\s*$",
+    re.IGNORECASE,
+)
+
+
+def _clean_song_name(name):
+    """Strip parenthesized/bracketed tags and common suffixes."""
+    # Remove (Bonus Track), [Deluxe Edition], etc.
+    name = re.sub(r"\s*[\(\[][^)\]]*[\)\]]", "", name)
+    # Remove trailing suffixes like "- Bonus Track"
+    name = _STRIP_SUFFIXES.sub("", name)
+    return name.strip()
+
+
 def download_instrumental(song_name, artist, duration_ms=None):
     """Search YouTube for an instrumental version of the song, download as mp3."""
     import yt_dlp
 
+    song_name = _clean_song_name(song_name)
     target_duration_s = (duration_ms / 1000.0) if duration_ms else None
 
     queries = [
