@@ -943,7 +943,34 @@
          Resonance — Merged: beautiful new UI + real backend wiring
          ══════════════════════════════════════════════════════════════════ */
 
-      const token = "{{ spotify_token }}";
+      let token = "{{ spotify_token }}";
+      let tokenExpiry = {{ token_expiry or 0 }};
+
+      // Auto-refresh Spotify token before it expires
+      async function refreshToken() {
+        try {
+          const resp = await fetch('/refresh-token', { method: 'POST' });
+          if (!resp.ok) return false;
+          const data = await resp.json();
+          token = data.access_token;
+          tokenExpiry = Math.floor(Date.now() / 1000) + 3300; // ~55 min
+          return true;
+        } catch { return false; }
+      }
+
+      function startTokenRefreshTimer() {
+        if (!token || !tokenExpiry) return;
+        setInterval(async () => {
+          const now = Math.floor(Date.now() / 1000);
+          if (tokenExpiry > 0 && now >= tokenExpiry) {
+            const ok = await refreshToken();
+            if (ok && spotifyPlayer) {
+              // SDK will call getOAuthToken on next API call — no reconnect needed
+              console.log('Spotify token refreshed');
+            }
+          }
+        }, 30000); // check every 30s
+      }
 
       // dB caps from original: video -6 dB ≈ 0.501, music -12 dB ≈ 0.251
       const VIDEO_MAX = Math.pow(10, -6  / 20);
@@ -1065,9 +1092,16 @@
       // ── Spotify Web Playback SDK (desktop only) ────────────────────
       window.onSpotifyWebPlaybackSDKReady = () => {
         if (!token) return;
+        startTokenRefreshTimer();
         spotifyPlayer = new Spotify.Player({
           name: 'Resonance',
-          getOAuthToken: cb => cb(token),
+          getOAuthToken: async cb => {
+            const now = Math.floor(Date.now() / 1000);
+            if (tokenExpiry > 0 && now >= tokenExpiry) {
+              await refreshToken();
+            }
+            cb(token);
+          },
           volume: MUSIC_MAX,
         });
         spotifyPlayer.addListener('ready', ({ device_id }) => {
@@ -1390,6 +1424,10 @@
               // Reset scrubber
               songScrubber.value = 0;
               songTime.textContent = '0:00 / ' + formatTime(songDurationMs);
+
+              // Ensure token is fresh before API call
+              const now = Math.floor(Date.now() / 1000);
+              if (tokenExpiry > 0 && now >= tokenExpiry) await refreshToken();
 
               const playResp = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
                 method: 'PUT',

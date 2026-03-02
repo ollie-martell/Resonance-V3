@@ -37,6 +37,7 @@ def index():
     return render_template("index.html",
                            spotify_client_id=CLIENT_ID,
                            spotify_token=session.get("token", ""),
+                           token_expiry=session.get("token_expiry", 0),
                            redirect_uri=REDIRECT_URI)
 
 
@@ -63,8 +64,33 @@ def callback():
         "code": code,
         "redirect_uri": REDIRECT_URI,
     }, auth=(CLIENT_ID, CLIENT_SECRET))
-    session["token"] = resp.json().get("access_token", "")
+    data = resp.json()
+    session["token"] = data.get("access_token", "")
+    session["refresh_token"] = data.get("refresh_token", "")
+    # expires_in is seconds; store absolute expiry with 5-min buffer
+    import time
+    session["token_expiry"] = int(time.time()) + data.get("expires_in", 3600) - 300
     return redirect("/")
+
+
+@app.route("/refresh-token", methods=["POST"])
+def refresh_token():
+    rt = session.get("refresh_token")
+    if not rt:
+        return jsonify({"error": "No refresh token"}), 401
+    resp = http.post("https://accounts.spotify.com/api/token", data={
+        "grant_type": "refresh_token",
+        "refresh_token": rt,
+    }, auth=(CLIENT_ID, CLIENT_SECRET))
+    data = resp.json()
+    if "access_token" not in data:
+        return jsonify({"error": "Refresh failed"}), 401
+    import time
+    session["token"] = data["access_token"]
+    if data.get("refresh_token"):
+        session["refresh_token"] = data["refresh_token"]
+    session["token_expiry"] = int(time.time()) + data.get("expires_in", 3600) - 300
+    return jsonify({"access_token": data["access_token"]})
 
 
 @app.route("/logout")

@@ -193,7 +193,7 @@ def mix_and_export(video_path, audio_path, start_ms, video_vol, music_vol):
 
     start_s = start_ms / 1000.0
 
-    # Build filter_complex — keep audio streams separate for Premiere Pro
+    # Build filter_complex — mix audio into a single track
     music_filter = (
         f"[1:a]atrim=start={start_s}:duration={vid_duration},"
         f"asetpts=PTS-STARTPTS,volume={music_vol}[ma]"
@@ -202,16 +202,14 @@ def mix_and_export(video_path, audio_path, start_ms, video_vol, music_vol):
     if has_audio and video_vol > 0:
         filter_complex = (
             f"[0:a]volume={video_vol}[va]; "
-            f"{music_filter}"
+            f"{music_filter}; "
+            f"[va][ma]amix=inputs=2:duration=first:normalize=0[aout]"
         )
-        maps = ["-map", "0:v", "-map", "[va]", "-map", "[ma]"]
+        maps = ["-map", "0:v", "-map", "[aout]"]
     elif has_audio:
-        # Video has audio but vol is 0 — still include it as silent track
-        filter_complex = (
-            f"[0:a]volume=0[va]; "
-            f"{music_filter}"
-        )
-        maps = ["-map", "0:v", "-map", "[va]", "-map", "[ma]"]
+        # Video has audio but vol is 0 — just use the instrumental
+        filter_complex = music_filter
+        maps = ["-map", "0:v", "-map", "[ma]"]
     else:
         # No original audio — just the instrumental
         filter_complex = music_filter
