@@ -1526,6 +1526,10 @@
         if (spotifyPlayer) spotifyPlayer.pause().catch(() => {});
         syncingPlayback = false;
 
+        // Start instrumental playback (and video if paused)
+        if (instrAudioEl) instrAudioEl.play().catch(() => {});
+        if (videoEl.paused) videoEl.play().catch(() => {});
+
         // Swap controls: hide Spotify, show export
         spotifyControls.style.display = 'none';
         exportControls.style.display = '';
