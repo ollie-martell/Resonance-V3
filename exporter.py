@@ -20,6 +20,8 @@ def _score_result(entry, song_name, artist, target_duration_s):
     """Score a yt-dlp flat-search entry. Returns None if hard-disqualified."""
     title = (entry.get("title") or "").lower()
 
+    score = 0
+
     # Soft match: count how many significant words from the song name appear
     sig_words = [w for w in song_name.lower().split() if len(w) >= 3]
     if sig_words:
@@ -34,8 +36,6 @@ def _score_result(entry, song_name, artist, target_duration_s):
         # Short song name — require it as a substring
         if song_name.lower() not in title:
             return None
-
-    score = 0
 
     # +20 if any artist name word appears
     for word in artist.lower().split():
