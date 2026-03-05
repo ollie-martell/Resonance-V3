@@ -33,13 +33,19 @@ _HEX_RE = re.compile(r"^[0-9a-f]+$")
 
 _URL_RE = re.compile(
     r"https?://([\w-]+\.)*"
-    r"(youtube\.com|youtu\.be|tiktok\.com|instagram\.com)/",
+    r"(youtube\.com|youtu\.be|tiktok\.com)/",
     re.IGNORECASE,
 )
 
 
+_INSTAGRAM_RE = re.compile(r"https?://([\w-]+\.)*instagram\.com/", re.IGNORECASE)
+
+
 def _download_url(url: str) -> str:
     """Download audio from a URL via yt-dlp, return path to the file."""
+    if _INSTAGRAM_RE.match(url):
+        raise ValueError("Instagram links aren't supported yet — try a YouTube or TikTok link instead.")
+
     import yt_dlp
 
     dl_id = uuid.uuid4().hex
@@ -50,6 +56,13 @@ def _download_url(url: str) -> str:
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
+        "http_headers": {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/131.0.0.0 Safari/537.36"
+            ),
+        },
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": "mp3",
@@ -212,7 +225,7 @@ def transcribe_url():
     data = request.get_json()
     url = (data or {}).get("url", "").strip()
     if not url or not _URL_RE.match(url):
-        return jsonify({"error": "Please provide a valid YouTube, TikTok, or Instagram URL."}), 400
+        return jsonify({"error": "Please provide a valid YouTube or TikTok URL."}), 400
 
     def generate():
         audio_path = None

@@ -853,7 +853,7 @@
 
         <div class="url-section">
           <div class="url-field">
-            <input type="text" id="urlInput" placeholder="Paste a YouTube, TikTok, or Instagram URL" autocomplete="off" spellcheck="false">
+            <input type="text" id="urlInput" placeholder="Paste a YouTube or TikTok URL" autocomplete="off" spellcheck="false">
             <button id="urlTranscribeBtn" class="btn">Transcribe</button>
           </div>
           <p class="url-hint">No login required</p>
@@ -1976,7 +1976,7 @@
       const urlVibeRead = document.getElementById('urlVibeRead');
       const urlTranscriptText = document.getElementById('urlTranscriptText');
 
-      const URL_RE = /^https?:\/\/([\w-]+\.)*(youtube\.com|youtu\.be|tiktok\.com|instagram\.com)\//i;
+      const URL_RE = /^https?:\/\/([\w-]+\.)*(youtube\.com|youtu\.be|tiktok\.com)\//i;
 
       urlTranscribeBtn.addEventListener('click', transcribeUrl);
       urlInput.addEventListener('keydown', (e) => {
@@ -1986,7 +1986,7 @@
       async function transcribeUrl() {
         const url = urlInput.value.trim();
         if (!url) { showError('Please paste a URL.'); return; }
-        if (!URL_RE.test(url)) { showError('Please use a YouTube, TikTok, or Instagram URL.'); return; }
+        if (!URL_RE.test(url)) { showError('Please use a YouTube or TikTok URL.'); return; }
 
         showScreen('loading');
         updateStatus('Downloading audio…', 5);
