@@ -33,7 +33,7 @@ _HEX_RE = re.compile(r"^[0-9a-f]+$")
 
 _URL_RE = re.compile(
     r"https?://([\w-]+\.)*"
-    r"(youtube\.com|youtu\.be|tiktok\.com)/",
+    r"(youtube\.com|youtu\.be|tiktok\.com|instagram\.com)/",
     re.IGNORECASE,
 )
 
@@ -225,7 +225,7 @@ def transcribe_url():
     data = request.get_json()
     url = (data or {}).get("url", "").strip()
     if not url or not _URL_RE.match(url):
-        return jsonify({"error": "Please provide a valid YouTube or TikTok URL."}), 400
+        return jsonify({"error": "Please provide a valid YouTube, TikTok, or Instagram URL."}), 400
 
     def generate():
         audio_path = None
