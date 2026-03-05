@@ -32,10 +32,9 @@ SCOPES        = "user-read-email user-read-private streaming"
 _HEX_RE = re.compile(r"^[0-9a-f]+$")
 
 _URL_RE = re.compile(
-    r"https?://(www\.)?"
-    r"(youtube\.com/|youtu\.be/|"
-    r"tiktok\.com/|vm\.tiktok\.com/|"
-    r"instagram\.com/(reel|p)/)"
+    r"https?://([\w-]+\.)*"
+    r"(youtube\.com|youtu\.be|tiktok\.com|instagram\.com)/",
+    re.IGNORECASE,
 )
 
 

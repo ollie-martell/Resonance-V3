@@ -789,12 +789,23 @@
       }
 
       /* Transcript results screen */
+      #screen-transcript {
+        overflow-y: auto;
+      }
+
+      .transcript-layout {
+        max-width: 900px;
+        width: 100%;
+        margin: 40px auto 0;
+        padding: 0 24px 100px;
+      }
+
       .transcript-body {
-        font-size: 14px;
-        line-height: 1.8;
+        font-size: 15px;
+        line-height: 1.9;
         color: var(--text-dim);
         white-space: pre-wrap;
-        max-height: 50vh;
+        max-height: 60vh;
         overflow-y: auto;
       }
 
@@ -805,6 +816,15 @@
       .transcript-body::-webkit-scrollbar-thumb {
         background: var(--glass-border);
         border-radius: 2px;
+      }
+
+      .transcript-actions {
+        display: flex;
+        gap: 12px;
+      }
+
+      .transcript-actions .btn {
+        flex: 1;
       }
 
       /* ── Mobile ───────────────────────────────────────── */
@@ -1048,19 +1068,20 @@
         </div>
       </header>
 
-      <div class="results-layout" style="max-width: 800px;">
-        <div class="results-main">
-          <div class="card-glass" style="margin-bottom: 32px;">
-            <span class="label-micro">Emotional Analysis</span>
-            <div id="urlVibeRead"></div>
-          </div>
+      <div class="transcript-layout">
+        <div class="card-glass" style="margin-bottom: 32px;">
+          <span class="label-micro">Emotional Analysis</span>
+          <div id="urlVibeRead"></div>
+        </div>
 
-          <div class="card-glass" style="margin-bottom: 32px;">
-            <span class="label-micro">Transcript</span>
-            <div id="urlTranscriptText" class="transcript-body"></div>
-          </div>
+        <div class="card-glass" style="margin-bottom: 32px;">
+          <span class="label-micro">Transcript</span>
+          <div id="urlTranscriptText" class="transcript-body"></div>
+        </div>
 
-          <button id="transcribeAnotherBtn" class="btn btn-glass" style="width: 100%;" onclick="goHome()">Transcribe Another</button>
+        <div class="transcript-actions">
+          <button class="btn btn-glass" onclick="copyTranscript()">Copy Transcript</button>
+          <button class="btn btn-glass" onclick="transcribeAnother()">Transcribe Another</button>
         </div>
       </div>
     </div>
@@ -1955,7 +1976,7 @@
       const urlVibeRead = document.getElementById('urlVibeRead');
       const urlTranscriptText = document.getElementById('urlTranscriptText');
 
-      const URL_RE = /^https?:\/\/(www\.)?(youtube\.com\/|youtu\.be\/|tiktok\.com\/|vm\.tiktok\.com\/|instagram\.com\/(reel|p)\/)/;
+      const URL_RE = /^https?:\/\/([\w-]+\.)*(youtube\.com|youtu\.be|tiktok\.com|instagram\.com)\//i;
 
       urlTranscribeBtn.addEventListener('click', transcribeUrl);
       urlInput.addEventListener('keydown', (e) => {
@@ -2012,6 +2033,24 @@
         urlVibeRead.textContent = data.vibe_read || '';
         urlTranscriptText.textContent = data.transcript || '';
         showScreen('transcript');
+      }
+
+      function copyTranscript() {
+        const text = urlTranscriptText.textContent;
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
+          const btn = event.target;
+          const orig = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(() => { btn.textContent = orig; }, 1500);
+        });
+      }
+
+      function transcribeAnother() {
+        urlInput.value = '';
+        urlVibeRead.textContent = '';
+        urlTranscriptText.textContent = '';
+        showScreen('gate');
       }
 
       function goHome() {
