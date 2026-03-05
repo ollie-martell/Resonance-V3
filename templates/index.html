@@ -1977,7 +1977,6 @@
       const urlTranscriptText = document.getElementById('urlTranscriptText');
 
       const URL_RE = /^https?:\/\/([\w-]+\.)*(youtube\.com|youtu\.be|tiktok\.com|instagram\.com)\//i;
-      const IG_RE = /^https?:\/\/([\w-]+\.)*instagram\.com\//i;
 
       urlTranscribeBtn.addEventListener('click', transcribeUrl);
       urlInput.addEventListener('keydown', (e) => {
@@ -1988,7 +1987,6 @@
         const url = urlInput.value.trim();
         if (!url) { showError('Please paste a URL.'); return; }
         if (!URL_RE.test(url)) { showError('Please use a YouTube, TikTok, or Instagram URL.'); return; }
-        if (IG_RE.test(url)) { showError('Instagram links aren\'t supported yet — try a YouTube or TikTok link.'); return; }
 
         showScreen('loading');
         updateStatus('Downloading audio…', 5);

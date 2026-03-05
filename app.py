@@ -38,14 +38,8 @@ _URL_RE = re.compile(
 )
 
 
-_INSTAGRAM_RE = re.compile(r"https?://([\w-]+\.)*instagram\.com/", re.IGNORECASE)
-
-
 def _download_url(url: str) -> str:
     """Download audio from a URL via yt-dlp, return path to the file."""
-    if _INSTAGRAM_RE.match(url):
-        raise ValueError("Instagram links aren't supported yet — try a YouTube or TikTok link instead.")
-
     import yt_dlp
 
     dl_id = uuid.uuid4().hex
