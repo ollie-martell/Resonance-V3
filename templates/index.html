@@ -718,6 +718,95 @@
         margin-top: 8px;
         text-align: center;
       }
+      /* URL transcription section on gate screen */
+      .url-divider {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin: 36px 0;
+        color: var(--text-muted);
+        font-size: 13px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      .url-divider::before,
+      .url-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--glass-border);
+      }
+
+      .url-section {
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
+      }
+
+      .url-field {
+        display: flex;
+        gap: 8px;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 100px;
+        padding: 6px 6px 6px 20px;
+        backdrop-filter: blur(20px);
+        transition: border-color 0.3s;
+      }
+
+      .url-field:focus-within {
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+
+      .url-field input {
+        flex: 1;
+        background: none;
+        border: none;
+        outline: none;
+        color: var(--text-main);
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        min-width: 0;
+      }
+
+      .url-field input::placeholder {
+        color: var(--text-muted);
+      }
+
+      .url-field .btn {
+        padding: 10px 24px;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .url-hint {
+        margin-top: 12px;
+        font-size: 12px;
+        color: var(--text-muted);
+        letter-spacing: 0.05em;
+      }
+
+      /* Transcript results screen */
+      .transcript-body {
+        font-size: 14px;
+        line-height: 1.8;
+        color: var(--text-dim);
+        white-space: pre-wrap;
+        max-height: 50vh;
+        overflow-y: auto;
+      }
+
+      .transcript-body::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      .transcript-body::-webkit-scrollbar-thumb {
+        background: var(--glass-border);
+        border-radius: 2px;
+      }
+
       /* ── Mobile ───────────────────────────────────────── */
     </style>
   </head>
@@ -739,6 +828,16 @@
         </div>
         <p class="gate-tagline">Experience your video's emotional depth<br>matched with the perfect soundtrack.</p>
         <a href="/login" id="connectBtn" class="btn" style="text-decoration:none;">Connect Spotify</a>
+
+        <div class="url-divider"><span>or</span></div>
+
+        <div class="url-section">
+          <div class="url-field">
+            <input type="text" id="urlInput" placeholder="Paste a YouTube, TikTok, or Instagram URL" autocomplete="off" spellcheck="false">
+            <button id="urlTranscribeBtn" class="btn">Transcribe</button>
+          </div>
+          <p class="url-hint">No login required</p>
+        </div>
       </div>
     </div>
 
@@ -934,6 +1033,38 @@
 
     </div>
 
+    <!-- SCREEN 5: TRANSCRIPT (URL-based, no Spotify) -->
+    <div id="screen-transcript" class="screen">
+      <header>
+        <div class="logo-group" onclick="goHome()">
+          <div class="logo-mark">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+          </div>
+          <span class="wordmark">Resonance</span>
+        </div>
+      </header>
+
+      <div class="results-layout" style="max-width: 800px;">
+        <div class="results-main">
+          <div class="card-glass" style="margin-bottom: 32px;">
+            <span class="label-micro">Emotional Analysis</span>
+            <div id="urlVibeRead"></div>
+          </div>
+
+          <div class="card-glass" style="margin-bottom: 32px;">
+            <span class="label-micro">Transcript</span>
+            <div id="urlTranscriptText" class="transcript-body"></div>
+          </div>
+
+          <button id="transcribeAnotherBtn" class="btn btn-glass" style="width: 100%;" onclick="goHome()">Transcribe Another</button>
+        </div>
+      </div>
+    </div>
+
     <div id="errorMsg"></div>
     <div class="cursor-glow" id="cursorGlow"></div>
 
@@ -1009,10 +1140,11 @@
 
       // ── DOM refs ───────────────────────────────────────────────────
       const screens = {
-        gate:    document.getElementById('screen-gate'),
-        upload:  document.getElementById('screen-upload'),
-        loading: document.getElementById('screen-loading'),
-        results: document.getElementById('screen-results')
+        gate:       document.getElementById('screen-gate'),
+        upload:     document.getElementById('screen-upload'),
+        loading:    document.getElementById('screen-loading'),
+        results:    document.getElementById('screen-results'),
+        transcript: document.getElementById('screen-transcript')
       };
 
       const fileInput      = document.getElementById('fileInput');
@@ -1816,6 +1948,80 @@
       function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
       function showError(m) { errorMsg.textContent = m; errorMsg.style.display = 'block'; setTimeout(hideError, 4000); }
       function hideError() { errorMsg.style.display = 'none'; }
+
+      // ── URL Transcription ──────────────────────────────────────────
+      const urlInput = document.getElementById('urlInput');
+      const urlTranscribeBtn = document.getElementById('urlTranscribeBtn');
+      const urlVibeRead = document.getElementById('urlVibeRead');
+      const urlTranscriptText = document.getElementById('urlTranscriptText');
+
+      const URL_RE = /^https?:\/\/(www\.)?(youtube\.com\/|youtu\.be\/|tiktok\.com\/|vm\.tiktok\.com\/|instagram\.com\/(reel|p)\/)/;
+
+      urlTranscribeBtn.addEventListener('click', transcribeUrl);
+      urlInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') transcribeUrl();
+      });
+
+      async function transcribeUrl() {
+        const url = urlInput.value.trim();
+        if (!url) { showError('Please paste a URL.'); return; }
+        if (!URL_RE.test(url)) { showError('Please use a YouTube, TikTok, or Instagram URL.'); return; }
+
+        showScreen('loading');
+        updateStatus('Downloading audio…', 5);
+
+        try {
+          const resp = await fetch('/transcribe-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+          });
+
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            showError(err.error || 'Something went wrong.');
+            showScreen('gate');
+            progressFill.style.width = '0%';
+            return;
+          }
+
+          await readSSE(resp, (event) => {
+            if (event.error) {
+              showError(event.error);
+              showScreen('gate');
+              progressFill.style.width = '0%';
+              return;
+            }
+            if (event.message) updateStatus(event.message, event.progress || 0);
+            if (event.progress != null) progressFill.style.width = event.progress + '%';
+            if (event.done) {
+              setTimeout(() => {
+                progressFill.style.width = '0%';
+                renderUrlResults(event);
+              }, 400);
+            }
+          });
+        } catch (e) {
+          showError('Connection failed. Is the server running?');
+          showScreen('gate');
+          progressFill.style.width = '0%';
+        }
+      }
+
+      function renderUrlResults(data) {
+        urlVibeRead.textContent = data.vibe_read || '';
+        urlTranscriptText.textContent = data.transcript || '';
+        showScreen('transcript');
+      }
+
+      function goHome() {
+        urlInput.value = '';
+        if (token && token.length > 0) {
+          showScreen('upload');
+        } else {
+          showScreen('gate');
+        }
+      }
 
       // ── Boot ───────────────────────────────────────────────────────
       init();

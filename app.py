@@ -31,6 +31,37 @@ SCOPES        = "user-read-email user-read-private streaming"
 
 _HEX_RE = re.compile(r"^[0-9a-f]+$")
 
+_URL_RE = re.compile(
+    r"https?://(www\.)?"
+    r"(youtube\.com/|youtu\.be/|"
+    r"tiktok\.com/|vm\.tiktok\.com/|"
+    r"instagram\.com/(reel|p)/)"
+)
+
+
+def _download_url(url: str) -> str:
+    """Download audio from a URL via yt-dlp, return path to the file."""
+    import yt_dlp
+
+    dl_id = uuid.uuid4().hex
+    out_path = os.path.join(UPLOAD_DIR, f"url_{dl_id}.%(ext)s")
+    ydl_opts = {
+        "format": "bestaudio/best",
+        "outtmpl": out_path,
+        "quiet": True,
+        "no_warnings": True,
+        "noplaylist": True,
+        "postprocessors": [{
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "mp3",
+            "preferredquality": "192",
+        }],
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([url])
+    # yt-dlp writes <base>.mp3 after post-processing
+    return os.path.join(UPLOAD_DIR, f"url_{dl_id}.mp3")
+
 
 @app.route("/")
 def index():
@@ -169,6 +200,51 @@ def analyze():
         except Exception as e:
             print(f"Error: {e}")
             yield _sse({"error": f"Processing failed: {str(e)}"})
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.route("/transcribe-url", methods=["POST"])
+def transcribe_url():
+    data = request.get_json()
+    url = (data or {}).get("url", "").strip()
+    if not url or not _URL_RE.match(url):
+        return jsonify({"error": "Please provide a valid YouTube, TikTok, or Instagram URL."}), 400
+
+    def generate():
+        audio_path = None
+        try:
+            yield _sse({"progress": 5, "message": "Downloading audio…"})
+            audio_path = _download_url(url)
+
+            yield _sse({"progress": 30, "message": "Transcribing…"})
+            transcript = transcribe(audio_path)
+            if not transcript["text"].strip():
+                yield _sse({"error": "No speech detected in the audio."})
+                return
+
+            yield _sse({"progress": 65, "message": "Analyzing vibe…"})
+            vibe = analyze_vibe(transcript["text"], transcript.get("duration"))
+
+            yield _sse({
+                "progress": 100,
+                "done": True,
+                "transcript": transcript["text"],
+                "segments": transcript.get("segments", []),
+                "language": transcript.get("language", ""),
+                "duration": transcript.get("duration"),
+                "vibe_read": vibe["vibe_read"],
+            })
+        except Exception as e:
+            print(f"Transcribe-url error: {e}")
+            yield _sse({"error": f"Processing failed: {str(e)}"})
+        finally:
+            if audio_path and os.path.isfile(audio_path):
+                os.remove(audio_path)
 
     return Response(
         stream_with_context(generate()),
