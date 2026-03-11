@@ -993,7 +993,7 @@
     }
   }
 
-  // ── Preview Instrumental ───────────────────────────────────────────
+  // ── Preview Track ─────────────────────────────────────────────────
   async function previewInstrumental(track, card, btn) {
     const key = track.name + '|' + track.artist;
 
@@ -1006,14 +1006,25 @@
     // Stop any current preview
     stopPreview();
 
-    btn.innerHTML = '...';
+    btn.innerHTML = '&hellip;';
     btn.disabled = true;
 
     try {
-      const instrData = await getInstrumental(track);
+      let audioUrl = null;
+      let label = '';
 
-      // Play from backend
-      previewAudio = new Audio(apiUrl + '/serve-instrumental/' + instrData.id);
+      // 1) Try Spotify preview URL first (instant, no YouTube needed)
+      if (track.preview_url) {
+        audioUrl = track.preview_url;
+        label = track.name + ' - ' + track.artist + ' (Preview)';
+      } else {
+        // 2) Fall back to instrumental from YouTube
+        const instrData = await getInstrumental(track);
+        audioUrl = apiUrl + '/serve-instrumental/' + instrData.id;
+        label = track.name + ' - ' + track.artist + ' (Instrumental)';
+      }
+
+      previewAudio = new Audio(audioUrl);
       previewAudio.volume = 0.5;
       currentPreviewId = key;
 
@@ -1029,14 +1040,14 @@
       activeTrackCard = card;
 
       btn.innerHTML = '&#9646;&#9646;';
-      nowPlayingEl.textContent = track.name + ' - ' + track.artist + ' (Instrumental)';
+      nowPlayingEl.textContent = label;
       previewBar.style.display = '';
 
     } catch (e) {
       showToast('Preview failed: ' + e.message, 'error');
     } finally {
       btn.disabled = false;
-      if (btn.innerHTML === '...') btn.innerHTML = '&#9654;';
+      if (btn.innerHTML === '&hellip;') btn.innerHTML = '&#9654;';
     }
   }
 
