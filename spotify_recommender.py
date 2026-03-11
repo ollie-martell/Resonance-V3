@@ -16,7 +16,7 @@ _TRENDING_PLAYLISTS = [
 
 # Cache: { "pool": [...], "fetched_at": timestamp }
 _trending_cache = {"pool": [], "fetched_at": 0}
-_CACHE_TTL = 3600  # refresh every hour
+_CACHE_TTL = 900  # refresh every 15 minutes
 
 
 def _get_spotify():
@@ -64,7 +64,7 @@ def get_trending_pool():
         sp = _get_spotify()
         for playlist_id in _TRENDING_PLAYLISTS:
             try:
-                results = sp.playlist_tracks(playlist_id, limit=15)
+                results = sp.playlist_tracks(playlist_id, limit=30)
                 for item in results.get("items", []):
                     track = item.get("track")
                     if not track or not track.get("id"):

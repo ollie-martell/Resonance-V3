@@ -154,14 +154,49 @@ def reroll():
     transcript = data.get("transcript", "")
     duration = data.get("duration")
     exclude = data.get("exclude", [])
+    fallback_mode = data.get("fallback_mode", False)
     if not transcript.strip():
         return jsonify({"error": "No transcript provided"}), 400
     try:
         trending_pool = get_trending_pool()
-        vibe = analyze_vibe(transcript, duration, exclude=exclude, trending_pool=trending_pool)
-        tracks = recommend(vibe["track_suggestions"])
+
+        # Filter out already-shown trending songs
+        exclude_lower = {e.lower() for e in exclude}
+        remaining_pool = [
+            t for t in trending_pool
+            if t["name"].lower() not in exclude_lower
+        ]
+
+        pool_exhausted = len(remaining_pool) == 0
+
+        if fallback_mode or pool_exhausted:
+            # User wants curated picks OR trending is exhausted
+            vibe = analyze_vibe(transcript, duration, exclude=exclude)
+            tracks = recommend(vibe["track_suggestions"])
+            return jsonify({
+                "tracks": tracks,
+                "trending_tracks": [],
+                "pool_exhausted": True,
+                "fallback_mode": True,
+            })
+
+        vibe = analyze_vibe(transcript, duration, exclude=exclude, trending_pool=remaining_pool)
         trending_tracks = recommend(vibe.get("trending_suggestions", []))
-        return jsonify({"tracks": tracks, "trending_tracks": trending_tracks})
+        backup_tracks = recommend(vibe["track_suggestions"])
+
+        # Check if we're running low
+        newly_excluded = {t["name"].lower() for t in trending_tracks}
+        future_remaining = [
+            t for t in remaining_pool
+            if t["name"].lower() not in newly_excluded
+        ]
+
+        return jsonify({
+            "tracks": backup_tracks,
+            "trending_tracks": trending_tracks,
+            "pool_exhausted": len(future_remaining) == 0,
+            "remaining_count": len(future_remaining),
+        })
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
@@ -211,8 +246,12 @@ def analyze():
 
             yield _sse({"progress": 78, "message": "Finding matching songs…"})
 
-            tracks = recommend(vibe["track_suggestions"])
             trending_tracks = recommend(vibe.get("trending_suggestions", []))
+            backup_tracks = recommend(vibe["track_suggestions"])
+
+            # Count remaining trending after this batch
+            shown_names = {t["name"].lower() for t in trending_tracks}
+            remaining = [t for t in trending_pool if t["name"].lower() not in shown_names]
 
             # Video is kept on disk for export; client calls /cleanup when done
             yield _sse({
@@ -220,10 +259,12 @@ def analyze():
                 "done": True,
                 "transcript": transcript["text"],
                 "vibe_read": vibe["vibe_read"],
-                "tracks": tracks,
+                "tracks": backup_tracks,
                 "trending_tracks": trending_tracks,
                 "duration": transcript.get("duration"),
                 "video_id": video_id,
+                "pool_exhausted": len(remaining) == 0,
+                "remaining_count": len(remaining),
             })
         except ValueError as e:
             yield _sse({"error": str(e)})

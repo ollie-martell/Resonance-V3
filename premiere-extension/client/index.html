@@ -563,20 +563,26 @@
           <button class="stop-btn" id="stopPreview" title="Stop">&#9724;</button>
         </div>
 
-        <!-- Tracks -->
+        <!-- Trending Tracks (primary) -->
         <div class="tracks-header">
-          <span class="card-label">Curated Picks</span>
-          <button id="rerollBtn" class="btn btn-glass">&#8635; 5 more</button>
+          <span class="card-label" style="color:var(--success);">Trending Now</span>
+          <button id="rerollBtn" class="btn btn-glass">&#8635; More trending</button>
         </div>
 
-        <div id="tracksList" class="tracks-list"></div>
+        <div id="trendingList" class="tracks-list"></div>
 
-        <!-- Trending Tracks -->
-        <div id="trendingSection" style="display:none;">
+        <div id="trendingExhausted" style="display:none; text-align:center; padding:12px 0;">
+          <p style="color:var(--text-dim); font-size:11px; margin-bottom:8px;">You've reached the end of the trending audio.</p>
+          <button id="fallbackBtn" class="btn btn-glass" style="font-size:11px;">Show other songs that fit the vibe</button>
+        </div>
+
+        <!-- Backup Picks (shown after exhaustion) -->
+        <div id="curatedSection" style="display:none;">
           <div class="tracks-header" style="margin-top:12px;">
-            <span class="card-label" style="color:var(--success);">Trending Now</span>
+            <span class="card-label">More Picks</span>
+            <button id="curatedRerollBtn" class="btn btn-glass">&#8635; 5 more</button>
           </div>
-          <div id="trendingList" class="tracks-list"></div>
+          <div id="tracksList" class="tracks-list"></div>
         </div>
 
         <!-- Analyze Another -->
@@ -611,6 +617,8 @@
   let lastDuration    = null;
   let lastTracks      = [];
   let excludedTracks  = new Set();
+  let poolExhausted   = false;
+  let fallbackMode    = false;
   let previewAudio    = null;
   let currentPreviewId = null;
   let activeTrackCard = null;
@@ -629,7 +637,6 @@
   const resultsSection  = document.getElementById('resultsSection');
   const vibeTextEl      = document.getElementById('vibeText');
   const tracksListEl    = document.getElementById('tracksList');
-  const trendingSection = document.getElementById('trendingSection');
   const trendingListEl  = document.getElementById('trendingList');
   const rerollBtn       = document.getElementById('rerollBtn');
   const resetBtn        = document.getElementById('resetBtn');
@@ -678,9 +685,14 @@
     apiUrlInput.addEventListener('change', saveSettings);
     apiUrlInput.addEventListener('blur', saveSettings);
     analyzeBtn.addEventListener('click', analyzeTimeline);
-    rerollBtn.addEventListener('click', rerollTracks);
+    rerollBtn.addEventListener('click', () => rerollTracks(false));
     resetBtn.addEventListener('click', resetResults);
     stopPreviewBtn.addEventListener('click', stopPreview);
+    document.getElementById('fallbackBtn').addEventListener('click', () => {
+      fallbackMode = true;
+      rerollTracks(true);
+    });
+    document.getElementById('curatedRerollBtn').addEventListener('click', () => rerollTracks(true));
   }
 
   // ── ExtendScript Bridge ────────────────────────────────────────────
@@ -862,10 +874,13 @@
     lastTranscript = data.transcript;
     lastDuration   = data.duration || null;
     excludedTracks = new Set();
+    poolExhausted  = data.pool_exhausted || false;
+    fallbackMode   = false;
 
     vibeTextEl.textContent = data.vibe_read || '';
-    renderTracks(data.tracks);
     renderTrending(data.trending_tracks || []);
+    renderTracks(data.tracks);
+    updateExhaustionUI();
   }
 
   // ── Render Track Cards ─────────────────────────────────────────────
@@ -911,12 +926,8 @@
 
   // ── Render Trending Tracks ──────────────────────────────────────────
   function renderTrending(tracks) {
-    if (!tracks || tracks.length === 0) {
-      trendingSection.style.display = 'none';
-      return;
-    }
-    trendingSection.style.display = '';
     trendingListEl.innerHTML = '';
+    if (!tracks || tracks.length === 0) return;
 
     for (const track of tracks) {
       const card = document.createElement('div');
@@ -1103,11 +1114,12 @@
   }
 
   // ── Reroll ─────────────────────────────────────────────────────────
-  async function rerollTracks() {
+  async function rerollTracks(useFallback) {
     if (!lastTranscript) return;
-    const origHTML = rerollBtn.innerHTML;
-    rerollBtn.disabled = true;
-    rerollBtn.textContent = 'Finding...';
+    const btn = useFallback ? document.getElementById('curatedRerollBtn') : rerollBtn;
+    const origHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = 'Finding...';
 
     try {
       const resp = await fetch(apiUrl + '/reroll', {
@@ -1116,7 +1128,8 @@
         body: JSON.stringify({
           transcript: lastTranscript,
           duration: lastDuration,
-          exclude: [...excludedTracks]
+          exclude: [...excludedTracks],
+          fallback_mode: useFallback || fallbackMode,
         })
       });
 
@@ -1124,13 +1137,36 @@
       if (!resp.ok) throw new Error(data.error || 'Reroll failed');
 
       stopPreview();
-      renderTracks(data.tracks);
-      renderTrending(data.trending_tracks || []);
+
+      if (data.fallback_mode) {
+        fallbackMode = true;
+        renderTracks(data.tracks);
+        document.getElementById('curatedSection').style.display = '';
+      } else {
+        renderTrending(data.trending_tracks || []);
+        renderTracks(data.tracks);
+        poolExhausted = data.pool_exhausted || false;
+      }
+      updateExhaustionUI();
     } catch (e) {
       showToast(e.message, 'error');
     } finally {
-      rerollBtn.disabled = false;
-      rerollBtn.innerHTML = origHTML;
+      btn.disabled = false;
+      btn.innerHTML = origHTML;
+    }
+  }
+
+  function updateExhaustionUI() {
+    const exhaustedEl = document.getElementById('trendingExhausted');
+    if (poolExhausted && !fallbackMode) {
+      exhaustedEl.style.display = '';
+      rerollBtn.style.display = 'none';
+    } else if (fallbackMode) {
+      exhaustedEl.style.display = 'none';
+      rerollBtn.style.display = 'none';
+    } else {
+      exhaustedEl.style.display = 'none';
+      rerollBtn.style.display = '';
     }
   }
 
@@ -1144,6 +1180,11 @@
     lastTracks = [];
     excludedTracks = new Set();
     cachedInstrumentals = {};
+    poolExhausted = false;
+    fallbackMode = false;
+    document.getElementById('curatedSection').style.display = 'none';
+    document.getElementById('trendingExhausted').style.display = 'none';
+    rerollBtn.style.display = '';
   }
 
   // ── UI Helpers ─────────────────────────────────────────────────────

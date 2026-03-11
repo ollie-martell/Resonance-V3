@@ -1037,23 +1037,30 @@
         </div>
 
         <div class="results-sidebar">
-          <div class="card-glass">
+          <!-- Trending (primary) -->
+          <div id="trendingCard" class="card-glass">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
-              <span class="label-micro" style="margin-bottom: 0;">Curated Picks</span>
-              <button id="rerollBtn" class="btn btn-glass" style="padding: 8px 16px; font-size: 11px;">&#8635;&nbsp;&nbsp;5 more</button>
+              <span class="label-micro" style="margin-bottom: 0; color: #22c55e;">Trending Now</span>
+              <button id="rerollBtn" class="btn btn-glass" style="padding: 8px 16px; font-size: 11px;">&#8635;&nbsp;&nbsp;More trending</button>
             </div>
             <!-- Export trigger button -->
             <div id="exportArea" style="display: none; margin-bottom: 20px;">
               <button id="exportTriggerBtn" class="btn" style="width: 100%;">Export with Instrumental</button>
             </div>
-            <div id="tracksGrid"></div>
+            <div id="trendingGrid"></div>
+            <div id="trendingExhausted" style="display: none; text-align: center; padding: 20px 10px;">
+              <p style="color: var(--text-dim); font-size: 14px; margin-bottom: 12px;">You've reached the end of the trending audio.</p>
+              <button id="fallbackBtn" class="btn btn-glass" style="padding: 10px 20px;">Show other songs that fit the vibe</button>
+            </div>
           </div>
 
-          <div id="trendingCard" class="card-glass" style="margin-top: 20px; display: none;">
-            <div style="margin-bottom: 20px;">
-              <span class="label-micro" style="margin-bottom: 0; color: #22c55e;">Trending Now</span>
+          <!-- Backup picks (shown after trending exhaustion or as fallback) -->
+          <div id="curatedCard" class="card-glass" style="margin-top: 20px; display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+              <span class="label-micro" style="margin-bottom: 0;">More Picks</span>
+              <button id="curatedRerollBtn" class="btn btn-glass" style="padding: 8px 16px; font-size: 11px;">&#8635;&nbsp;&nbsp;5 more</button>
             </div>
-            <div id="trendingGrid"></div>
+            <div id="tracksGrid"></div>
           </div>
         </div>
       </div>
@@ -1141,6 +1148,8 @@
       let lastTranscript   = null;
       let lastDuration     = null;
       let excludedTracks   = new Set();
+      let poolExhausted    = false;
+      let fallbackMode     = false;
       let spotifyPlayer    = null;
       let spotifyDeviceId  = null;
       let currentUri       = null;
@@ -1396,8 +1405,13 @@
         });
 
         // Reroll & reset
-        rerollBtn.addEventListener('click', rerollTracks);
+        rerollBtn.addEventListener('click', () => rerollTracks(false));
         resetBtn.addEventListener('click', resetApp);
+        document.getElementById('fallbackBtn').addEventListener('click', () => {
+          fallbackMode = true;
+          rerollTracks(true);
+        });
+        document.getElementById('curatedRerollBtn').addEventListener('click', () => rerollTracks(true));
       }
 
       // ── File handling ──────────────────────────────────────────────
@@ -1496,9 +1510,12 @@
         lastVideoId    = data.video_id || null;
         lastVideoFileName = (currentVideoFile?.name || '').replace(/\.mp4$/i, '');
         excludedTracks = new Set();
+        poolExhausted  = data.pool_exhausted || false;
+        fallbackMode   = false;
 
-        renderTracks(data.tracks);
         renderTrending(data.trending_tracks || []);
+        renderTracks(data.tracks);
+        updateExhaustionUI();
         showScreen('results');
       }
 
@@ -1618,15 +1635,10 @@
 
       // ── Render trending tracks (same card style, separate grid) ───
       function renderTrending(tracks) {
-        const trendingCard = document.getElementById('trendingCard');
         const trendingGrid = document.getElementById('trendingGrid');
-        if (!tracks || tracks.length === 0) {
-          trendingCard.style.display = 'none';
-          return;
-        }
-        trendingCard.style.display = '';
-        tracks.forEach(t => excludedTracks.add(t.name));
         trendingGrid.innerHTML = '';
+        if (!tracks || tracks.length === 0) return;
+        tracks.forEach(t => excludedTracks.add(t.name));
 
         for (const track of tracks) {
           const art = track.album_art || '';
@@ -1722,11 +1734,12 @@
       }
 
       // ── Reroll: real API call ──────────────────────────────────────
-      async function rerollTracks() {
+      async function rerollTracks(useFallback) {
         if (!lastTranscript) return;
-        const origHTML = rerollBtn.innerHTML;
-        rerollBtn.disabled = true;
-        rerollBtn.textContent = 'Finding…';
+        const btn = useFallback ? document.getElementById('curatedRerollBtn') : rerollBtn;
+        const origHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.textContent = 'Finding…';
 
         try {
           const resp = await fetch('/reroll', {
@@ -1735,18 +1748,42 @@
             body: JSON.stringify({
               transcript: lastTranscript,
               duration: lastDuration,
-              exclude: [...excludedTracks]
+              exclude: [...excludedTracks],
+              fallback_mode: useFallback || fallbackMode,
             }),
           });
           const data = await resp.json();
           if (!resp.ok) { showError(data.error || 'Reroll failed.'); return; }
-          renderTracks(data.tracks);
-          renderTrending(data.trending_tracks || []);
+
+          if (data.fallback_mode) {
+            fallbackMode = true;
+            renderTracks(data.tracks);
+            document.getElementById('curatedCard').style.display = '';
+          } else {
+            renderTrending(data.trending_tracks || []);
+            renderTracks(data.tracks);
+            poolExhausted = data.pool_exhausted || false;
+          }
+          updateExhaustionUI();
         } catch {
           showError('Reroll failed — is the server running?');
         } finally {
-          rerollBtn.disabled = false;
-          rerollBtn.innerHTML = origHTML;
+          btn.disabled = false;
+          btn.innerHTML = origHTML;
+        }
+      }
+
+      function updateExhaustionUI() {
+        const exhaustedEl = document.getElementById('trendingExhausted');
+        if (poolExhausted && !fallbackMode) {
+          exhaustedEl.style.display = '';
+          rerollBtn.style.display = 'none';
+        } else if (fallbackMode) {
+          exhaustedEl.style.display = 'none';
+          rerollBtn.style.display = 'none';
+        } else {
+          exhaustedEl.style.display = 'none';
+          rerollBtn.style.display = '';
         }
       }
 
@@ -2076,6 +2113,11 @@
         lastTranscript = null;
         lastDuration = null;
         excludedTracks = new Set();
+        poolExhausted = false;
+        fallbackMode = false;
+        document.getElementById('curatedCard').style.display = 'none';
+        document.getElementById('trendingExhausted').style.display = 'none';
+        rerollBtn.style.display = '';
         showScreen('upload');
       }
 
