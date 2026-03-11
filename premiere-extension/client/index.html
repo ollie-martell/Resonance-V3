@@ -1056,7 +1056,7 @@
   // ── Add to Timeline ────────────────────────────────────────────────
   async function addToTimeline(track, card, btn) {
     btn.disabled = true;
-    btn.textContent = '...';
+    btn.innerHTML = '&hellip;';
 
     try {
       // Get instrumental
@@ -1091,12 +1091,12 @@
       }
 
       showToast('Added "' + track.name + '" to ' + result.trackName, 'success');
-      btn.textContent = '&#10003;';
+      btn.innerHTML = '&#10003;';
       btn.style.background = 'var(--success)';
 
     } catch (e) {
       showToast('Failed: ' + e.message, 'error');
-      btn.textContent = '+';
+      btn.innerHTML = '+';
     } finally {
       btn.disabled = false;
     }
