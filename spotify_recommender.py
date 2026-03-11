@@ -161,6 +161,12 @@ def recommend(track_suggestions):
         if not items:
             items = _search(sp, f"{song} {artist}")
 
+        # Try swapping song/artist (Claude sometimes reverses them)
+        if not items and artist:
+            items = _search(sp, f'track:"{artist}" artist:"{song}"')
+            if not items:
+                items = _search(sp, f"{artist} {song}")
+
         if items:
             t = items[0]
             images = t.get("album", {}).get("images", [])

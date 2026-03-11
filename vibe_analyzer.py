@@ -92,6 +92,8 @@ Transcript:
 
 def _parse_track_line(line):
     """Parse a single track line: Song — Artist — Genre — Reason"""
+    # Strip leading numbering like "1.", "1)", "- ", "* "
+    line = re.sub(r"^\s*(\d+[\.\)]\s*|[-*•]\s*)", "", line)
     parts = re.split(r"\s*[—–]\s*", line, maxsplit=3)
     if len(parts) >= 2 and parts[0]:
         return {
