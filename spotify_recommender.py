@@ -71,24 +71,57 @@ def get_trending_pool():
     except Exception as e:
         print(f"TikTok trending failed: {e}")
 
-    # 2) Spotify search-based trending — uses client credentials (no user auth)
-    _TRENDING_QUERIES = [
-        "year:2025 2026",
-        "tag:new",
-        "genre:pop",
-        "genre:hip-hop",
-        "genre:r&b",
-        "genre:indie",
-        "genre:electronic",
-        "genre:latin",
-    ]
+    # 2) Spotify new releases + popular searches — client credentials (no user auth)
     try:
         sp = _get_spotify()
+
+        # 2a) New album releases → extract tracks from each
+        try:
+            new_releases = sp.new_releases(limit=20)
+            for album in new_releases.get("albums", {}).get("items", []):
+                try:
+                    album_tracks = sp.album_tracks(album["id"], limit=5)
+                    for track in album_tracks.get("items", []):
+                        if not track or not track.get("id"):
+                            continue
+                        name = track["name"]
+                        artist = ", ".join(a["name"] for a in track.get("artists", []))
+                        key = (name.lower(), artist.lower())
+                        if key not in seen:
+                            seen.add(key)
+                            pool.append({"name": name, "artist": artist})
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"New releases failed: {e}")
+
+        # 2b) Search for currently popular songs across genres
+        _TRENDING_QUERIES = [
+            "tag:new year:2025",
+            "tag:new year:2026",
+            "tag:hipster",
+            "viral TikTok",
+            "trending",
+            "new music friday",
+            "hot hits",
+            "top songs 2025",
+            "top songs 2026",
+            "viral hits",
+            "popular right now",
+            "Drake", "Kendrick Lamar", "Taylor Swift", "SZA",
+            "Bad Bunny", "Doja Cat", "Travis Scott", "Billie Eilish",
+            "The Weeknd", "Sabrina Carpenter", "Chappell Roan",
+            "Tyla", "Peso Pluma", "Jack Harlow", "Dua Lipa",
+            "Future", "Metro Boomin", "21 Savage", "Gunna",
+        ]
         for query in _TRENDING_QUERIES:
             try:
-                results = sp.search(q=query, type="track", limit=20)
+                results = sp.search(q=query, type="track", limit=10)
                 for track in results.get("tracks", {}).get("items", []):
                     if not track or not track.get("id"):
+                        continue
+                    # Only include reasonably popular tracks
+                    if track.get("popularity", 0) < 40:
                         continue
                     name = track["name"]
                     artist = ", ".join(a["name"] for a in track.get("artists", []))
@@ -98,6 +131,7 @@ def get_trending_pool():
                         pool.append({"name": name, "artist": artist})
             except Exception as e:
                 print(f"Trending search '{query}' failed: {e}")
+
     except ValueError:
         pass
 

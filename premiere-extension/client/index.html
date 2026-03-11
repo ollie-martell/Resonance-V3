@@ -958,6 +958,7 @@
   function renderTrending(tracks) {
     trendingListEl.innerHTML = '';
     if (!tracks || tracks.length === 0) return;
+    tracks.forEach(t => excludedTracks.add(t.name));
 
     for (const track of tracks) {
       const card = document.createElement('div');
