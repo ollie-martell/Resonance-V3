@@ -21,6 +21,18 @@ app = Flask(__name__)
 app.secret_key = secrets.token_hex(32)
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024
 
+
+# ── CORS (needed for Premiere Pro CEP panel) ─────────────────────────────
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    if request.method == "OPTIONS":
+        response.status_code = 200
+    return response
+
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 

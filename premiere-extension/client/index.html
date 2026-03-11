@@ -1,0 +1,1136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Resonance</title>
+  <style>
+    :root {
+      --bg: #232323;
+      --bg-card: rgba(255,255,255,0.04);
+      --border: rgba(255,255,255,0.08);
+      --border-hover: rgba(255,255,255,0.18);
+      --accent: #8b5cf6;
+      --accent-dim: rgba(139,92,246,0.2);
+      --text: #e4e4e7;
+      --text-dim: rgba(255,255,255,0.55);
+      --text-muted: rgba(255,255,255,0.3);
+      --danger: #ef4444;
+      --success: #22c55e;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.5;
+      overflow: hidden;
+      height: 100vh;
+      user-select: none;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ── Top Bar ───────────────────────────── */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-bars {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      height: 16px;
+    }
+
+    .logo-bars .bar {
+      width: 2px;
+      border-radius: 2px;
+      background: linear-gradient(to top, var(--accent), #4f46e5);
+      animation: barPulse 1.2s ease-in-out infinite;
+    }
+
+    .logo-bars .bar:nth-child(1) { height: 40%; animation-delay: 0s; }
+    .logo-bars .bar:nth-child(2) { height: 70%; animation-delay: 0.15s; }
+    .logo-bars .bar:nth-child(3) { height: 100%; animation-delay: 0.3s; }
+    .logo-bars .bar:nth-child(4) { height: 55%; animation-delay: 0.45s; }
+    .logo-bars .bar:nth-child(5) { height: 85%; animation-delay: 0.6s; }
+
+    @keyframes barPulse {
+      0%, 100% { transform: scaleY(1); opacity: 0.7; }
+      50% { transform: scaleY(0.4); opacity: 1; }
+    }
+
+    .logo-text {
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      opacity: 0.85;
+    }
+
+    .settings-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .settings-btn:hover {
+      border-color: var(--border-hover);
+      color: var(--text);
+    }
+
+    /* ── Settings Panel ────────────────────── */
+    .settings-panel {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.2);
+    }
+
+    .settings-panel label {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .settings-panel input {
+      width: 100%;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 10px;
+      color: var(--text);
+      font-size: 11px;
+      font-family: monospace;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .settings-panel input:focus {
+      border-color: var(--accent);
+    }
+
+    .settings-hint {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ── Content Area ──────────────────────── */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .content::-webkit-scrollbar { width: 4px; }
+    .content::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    /* ── Cards ─────────────────────────────── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+
+    .card-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    /* ── Sequence Card ─────────────────────── */
+    .seq-name {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .seq-details {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .seq-badge {
+      display: inline-block;
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 100px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 6px;
+    }
+
+    /* ── Buttons ───────────────────────────── */
+    .btn {
+      border: none;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #4f46e5);
+      color: white;
+      padding: 12px 20px;
+      width: 100%;
+      border-radius: var(--radius);
+      font-size: 13px;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      filter: brightness(1.15);
+      box-shadow: 0 0 20px rgba(139,92,246,0.3);
+    }
+
+    .btn-glass {
+      background: var(--bg-card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      font-size: 11px;
+    }
+
+    .btn-glass:hover:not(:disabled) {
+      border-color: var(--border-hover);
+      background: rgba(255,255,255,0.08);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+      padding: 8px 14px;
+    }
+
+    .btn-success:hover:not(:disabled) {
+      filter: brightness(1.1);
+    }
+
+    /* ── Progress ──────────────────────────── */
+    .progress-section {
+      text-align: center;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 3px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.4s ease;
+      border-radius: 3px;
+    }
+
+    .progress-text {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    /* ── Vibe Read ─────────────────────────── */
+    .vibe-text {
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--text-dim);
+    }
+
+    /* ── Tracks ────────────────────────────── */
+    .tracks-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2px;
+    }
+
+    .tracks-header .card-label { margin-bottom: 0; }
+
+    .tracks-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .track-card {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      transition: all 0.2s;
+      align-items: center;
+    }
+
+    .track-card:hover {
+      border-color: var(--border-hover);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .track-card.active {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    .track-art {
+      width: 44px;
+      height: 44px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: rgba(255,255,255,0.05);
+      flex-shrink: 0;
+    }
+
+    .track-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .track-name {
+      font-weight: 600;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .track-artist {
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .track-genre {
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-top: 2px;
+    }
+
+    .track-reason {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    .track-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .track-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      transition: all 0.2s;
+    }
+
+    .track-btn.preview-btn {
+      background: white;
+      color: black;
+    }
+
+    .track-btn.preview-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 12px rgba(255,255,255,0.3);
+    }
+
+    .track-btn.add-btn {
+      background: var(--success);
+      color: white;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .track-btn.add-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 12px rgba(34,197,94,0.4);
+    }
+
+    .track-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* ── Preview Player ────────────────────── */
+    .preview-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .preview-bar .now-playing {
+      flex: 1;
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .preview-bar .stop-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .preview-bar .stop-btn:hover { color: var(--text); }
+
+    /* ── Toast ──────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 14px;
+      left: 14px;
+      right: 14px;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 600;
+      text-align: center;
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      pointer-events: none;
+    }
+
+    .toast.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast.error {
+      background: rgba(239,68,68,0.9);
+      color: white;
+    }
+
+    .toast.success {
+      background: rgba(34,197,94,0.9);
+      color: white;
+    }
+
+    .toast.info {
+      background: rgba(139,92,246,0.9);
+      color: white;
+    }
+
+    /* ── Analyze Another ───────────────────── */
+    .reset-row {
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <div class="logo-row">
+        <div class="logo-bars">
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+        <span class="logo-text">Resonance</span>
+      </div>
+      <button class="settings-btn" id="settingsToggle" title="Settings">&#9881;</button>
+    </div>
+
+    <!-- Settings (hidden by default) -->
+    <div class="settings-panel" id="settingsPanel" style="display:none;">
+      <label>Backend URL</label>
+      <input id="apiUrl" type="text" spellcheck="false"/>
+      <p class="settings-hint">Your Resonance server (Railway or localhost)</p>
+    </div>
+
+    <!-- Scrollable Content -->
+    <div class="content">
+      <!-- Sequence Info -->
+      <div class="card" id="seqCard">
+        <span class="card-label">Active Sequence</span>
+        <div id="seqName" class="seq-name">No sequence open</div>
+        <div id="seqDetails" class="seq-details"></div>
+      </div>
+
+      <!-- Analyze Button -->
+      <button id="analyzeBtn" class="btn btn-primary" disabled>
+        Analyze Timeline
+      </button>
+
+      <!-- Progress -->
+      <div id="progressSection" class="progress-section" style="display:none;">
+        <div class="progress-bar">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <div id="progressText" class="progress-text">Preparing...</div>
+      </div>
+
+      <!-- Results (hidden until analysis completes) -->
+      <div id="resultsSection" style="display:none;">
+        <!-- Vibe Read -->
+        <div class="card">
+          <span class="card-label">Vibe Read</span>
+          <div id="vibeText" class="vibe-text"></div>
+        </div>
+
+        <!-- Preview Player (hidden until playing) -->
+        <div id="previewBar" class="preview-bar" style="display:none;">
+          <span class="now-playing" id="nowPlaying"></span>
+          <button class="stop-btn" id="stopPreview" title="Stop">&#9724;</button>
+        </div>
+
+        <!-- Tracks -->
+        <div class="tracks-header">
+          <span class="card-label">Suggested Tracks</span>
+          <button id="rerollBtn" class="btn btn-glass">&#8635; 5 more</button>
+        </div>
+
+        <div id="tracksList" class="tracks-list"></div>
+
+        <!-- Analyze Another -->
+        <div class="reset-row">
+          <button id="resetBtn" class="btn btn-glass" style="width:100%;">Analyze Another</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="CSInterface.js"></script>
+  <script>
+  /* ═══════════════════════════════════════════════════════════════════════
+     Resonance — Premiere Pro Panel
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  // ── Node.js modules (available in CEP) ─────────────────────────────
+  const fs   = require('fs');
+  const path = require('path');
+  const os   = require('os');
+
+  // ── CEP Interface ──────────────────────────────────────────────────
+  const csInterface = new CSInterface();
+
+  // ── State ──────────────────────────────────────────────────────────
+  let apiUrl          = '';
+  let seqInfo         = null;
+  let lastTranscript  = '';
+  let lastDuration    = null;
+  let lastTracks      = [];
+  let excludedTracks  = new Set();
+  let previewAudio    = null;
+  let currentPreviewId = null;
+  let activeTrackCard = null;
+  let cachedInstrumentals = {}; // { "song-artist": { id, durMs, filePath } }
+
+  // ── DOM Refs ───────────────────────────────────────────────────────
+  const settingsToggle  = document.getElementById('settingsToggle');
+  const settingsPanel   = document.getElementById('settingsPanel');
+  const apiUrlInput     = document.getElementById('apiUrl');
+  const seqNameEl       = document.getElementById('seqName');
+  const seqDetailsEl    = document.getElementById('seqDetails');
+  const analyzeBtn      = document.getElementById('analyzeBtn');
+  const progressSection = document.getElementById('progressSection');
+  const progressFill    = document.getElementById('progressFill');
+  const progressText    = document.getElementById('progressText');
+  const resultsSection  = document.getElementById('resultsSection');
+  const vibeTextEl      = document.getElementById('vibeText');
+  const tracksListEl    = document.getElementById('tracksList');
+  const rerollBtn       = document.getElementById('rerollBtn');
+  const resetBtn        = document.getElementById('resetBtn');
+  const previewBar      = document.getElementById('previewBar');
+  const nowPlayingEl    = document.getElementById('nowPlaying');
+  const stopPreviewBtn  = document.getElementById('stopPreview');
+  const toastEl         = document.getElementById('toast');
+
+  // ── Init ───────────────────────────────────────────────────────────
+  function init() {
+    loadSettings();
+    setupListeners();
+    pollSequenceInfo();
+    setInterval(pollSequenceInfo, 2000);
+  }
+
+  function loadSettings() {
+    try {
+      const settingsPath = path.join(os.homedir(), '.resonance-premiere.json');
+      if (fs.existsSync(settingsPath)) {
+        const data = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        apiUrl = data.apiUrl || '';
+      }
+    } catch (e) {}
+    if (!apiUrl) {
+      apiUrl = 'https://localhost:5001';
+    }
+    apiUrlInput.value = apiUrl;
+  }
+
+  function saveSettings() {
+    apiUrl = apiUrlInput.value.replace(/\/+$/, '');
+    apiUrlInput.value = apiUrl;
+    try {
+      const settingsPath = path.join(os.homedir(), '.resonance-premiere.json');
+      fs.writeFileSync(settingsPath, JSON.stringify({ apiUrl }), 'utf8');
+    } catch (e) {}
+  }
+
+  function setupListeners() {
+    settingsToggle.addEventListener('click', () => {
+      const visible = settingsPanel.style.display !== 'none';
+      settingsPanel.style.display = visible ? 'none' : '';
+    });
+
+    apiUrlInput.addEventListener('change', saveSettings);
+    apiUrlInput.addEventListener('blur', saveSettings);
+    analyzeBtn.addEventListener('click', analyzeTimeline);
+    rerollBtn.addEventListener('click', rerollTracks);
+    resetBtn.addEventListener('click', resetResults);
+    stopPreviewBtn.addEventListener('click', stopPreview);
+  }
+
+  // ── ExtendScript Bridge ────────────────────────────────────────────
+  function evalJSX(fnName, ...args) {
+    return new Promise((resolve, reject) => {
+      const argsStr = args.map(a => JSON.stringify(a)).join(', ');
+      const script = fnName + '(' + argsStr + ')';
+      csInterface.evalScript(script, (result) => {
+        if (result === 'EvalScript error' || result === 'undefined') {
+          reject(new Error('ExtendScript call failed: ' + fnName));
+          return;
+        }
+        try {
+          resolve(JSON.parse(result));
+        } catch (e) {
+          resolve(result);
+        }
+      });
+    });
+  }
+
+  // ── Poll Sequence Info ─────────────────────────────────────────────
+  async function pollSequenceInfo() {
+    try {
+      const info = await evalJSX('getSequenceInfo');
+      if (info.error) {
+        seqInfo = null;
+        seqNameEl.textContent = 'No sequence open';
+        seqDetailsEl.innerHTML = '<span style="color:var(--text-muted)">Open a sequence to get started</span>';
+        analyzeBtn.disabled = true;
+        analyzeBtn.textContent = 'Analyze Timeline';
+        return;
+      }
+
+      seqInfo = info;
+      seqNameEl.textContent = info.name;
+
+      const dur = formatDuration(info.duration);
+      let details = dur;
+      if (info.hasInOut) {
+        const rangeDur = formatDuration(info.rangeDuration);
+        details += ' &middot; In/Out: ' + rangeDur;
+      }
+      seqDetailsEl.innerHTML = details;
+
+      analyzeBtn.disabled = false;
+      if (info.hasInOut) {
+        analyzeBtn.textContent = 'Analyze In/Out Range';
+      } else {
+        analyzeBtn.textContent = 'Analyze Full Timeline';
+      }
+    } catch (e) {
+      // Not in Premiere — dev mode
+      seqNameEl.textContent = 'Not connected to Premiere';
+      seqDetailsEl.innerHTML = '';
+      analyzeBtn.disabled = true;
+    }
+  }
+
+  // ── Main Analysis Flow ─────────────────────────────────────────────
+  async function analyzeTimeline() {
+    if (!seqInfo) return;
+
+    analyzeBtn.disabled = true;
+    resultsSection.style.display = 'none';
+    progressSection.style.display = '';
+    updateProgress(0, 'Exporting sequence...');
+
+    try {
+      // Step 1: Export the sequence
+      const tempDir = await evalJSX('getTempFolder');
+      const outputPath = path.join(tempDir, 'resonance_export_' + Date.now() + '.mp4');
+
+      updateProgress(5, 'Exporting from timeline...');
+
+      const exportResult = await evalJSX(
+        'exportSequence',
+        outputPath,
+        '',  // auto-find preset
+        seqInfo.hasInOut
+      );
+
+      if (exportResult.error) {
+        throw new Error(exportResult.error);
+      }
+
+      // If AME method, poll for file
+      if (exportResult.method === 'ame') {
+        updateProgress(10, 'Waiting for Media Encoder...');
+        await waitForFile(outputPath, 300000);
+      }
+
+      updateProgress(20, 'Uploading for analysis...');
+
+      // Step 2: Upload to backend
+      const fileBuffer = fs.readFileSync(outputPath);
+      const blob = new Blob([fileBuffer], { type: 'video/mp4' });
+      const formData = new FormData();
+      formData.append('video', blob, 'sequence_export.mp4');
+
+      const resp = await fetch(apiUrl + '/analyze', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || 'Analysis failed');
+      }
+
+      // Step 3: Stream SSE results
+      await readSSE(resp, (event) => {
+        if (event.error) throw new Error(event.error);
+        if (event.message) updateProgress(event.progress || 0, event.message);
+        if (event.done) {
+          showResults(event);
+        }
+      });
+
+      // Cleanup temp file
+      try { fs.unlinkSync(outputPath); } catch (e) {}
+
+    } catch (e) {
+      showToast(e.message, 'error');
+      progressSection.style.display = 'none';
+      analyzeBtn.disabled = false;
+    }
+  }
+
+  // ── SSE Reader ─────────────────────────────────────────────────────
+  async function readSSE(response, onEvent) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop();
+      for (const part of parts) {
+        if (!part.startsWith('data: ')) continue;
+        const event = JSON.parse(part.slice(6));
+        onEvent(event);
+      }
+    }
+  }
+
+  // ── Wait for File (AME export polling) ─────────────────────────────
+  function waitForFile(filePath, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      const check = setInterval(() => {
+        if (fs.existsSync(filePath)) {
+          const size1 = fs.statSync(filePath).size;
+          setTimeout(() => {
+            if (!fs.existsSync(filePath)) return;
+            const size2 = fs.statSync(filePath).size;
+            if (size2 > 0 && size1 === size2) {
+              clearInterval(check);
+              resolve(filePath);
+            }
+          }, 1500);
+        } else if (Date.now() - start > timeoutMs) {
+          clearInterval(check);
+          reject(new Error('Export timed out. Check Adobe Media Encoder.'));
+        }
+      }, 3000);
+    });
+  }
+
+  // ── Show Results ───────────────────────────────────────────────────
+  function showResults(data) {
+    progressSection.style.display = 'none';
+    resultsSection.style.display = '';
+    analyzeBtn.disabled = false;
+
+    lastTranscript = data.transcript;
+    lastDuration   = data.duration || null;
+    excludedTracks = new Set();
+
+    vibeTextEl.textContent = data.vibe_read || '';
+    renderTracks(data.tracks);
+  }
+
+  // ── Render Track Cards ─────────────────────────────────────────────
+  function renderTracks(tracks) {
+    lastTracks = tracks;
+    tracks.forEach(t => excludedTracks.add(t.name));
+    tracksListEl.innerHTML = '';
+
+    for (const track of tracks) {
+      const card = document.createElement('div');
+      card.className = 'track-card';
+      card.dataset.name = track.name;
+      card.dataset.artist = track.artist;
+      card.dataset.durationMs = track.duration_ms || 0;
+
+      const art = track.album_art
+        ? '<img src="' + escHtml(track.album_art) + '" class="track-art" alt="">'
+        : '<div class="track-art"></div>';
+
+      card.innerHTML =
+        art +
+        '<div class="track-info">' +
+          '<div class="track-name">' + escHtml(track.name) + '</div>' +
+          '<div class="track-artist">' + escHtml(track.artist) + '</div>' +
+          (track.genre ? '<div class="track-genre">' + escHtml(track.genre) + '</div>' : '') +
+          (track.reason ? '<div class="track-reason">' + escHtml(track.reason) + '</div>' : '') +
+        '</div>' +
+        '<div class="track-actions">' +
+          '<button class="track-btn preview-btn" title="Preview Instrumental">&#9654;</button>' +
+          '<button class="track-btn add-btn" title="Add to Timeline">+</button>' +
+        '</div>';
+
+      // Wire up buttons
+      const previewBtn = card.querySelector('.preview-btn');
+      const addBtn = card.querySelector('.add-btn');
+
+      previewBtn.addEventListener('click', () => previewInstrumental(track, card, previewBtn));
+      addBtn.addEventListener('click', () => addToTimeline(track, card, addBtn));
+
+      tracksListEl.appendChild(card);
+    }
+  }
+
+  // ── Preview Instrumental ───────────────────────────────────────────
+  async function previewInstrumental(track, card, btn) {
+    const key = track.name + '|' + track.artist;
+
+    // If already playing this track, toggle
+    if (currentPreviewId === key && previewAudio && !previewAudio.paused) {
+      stopPreview();
+      return;
+    }
+
+    // Stop any current preview
+    stopPreview();
+
+    btn.innerHTML = '...';
+    btn.disabled = true;
+
+    try {
+      const instrData = await getInstrumental(track);
+
+      // Play from backend
+      previewAudio = new Audio(apiUrl + '/serve-instrumental/' + instrData.id);
+      previewAudio.volume = 0.5;
+      currentPreviewId = key;
+
+      previewAudio.addEventListener('ended', () => {
+        stopPreview();
+      });
+
+      await previewAudio.play();
+
+      // Update UI
+      if (activeTrackCard) activeTrackCard.classList.remove('active');
+      card.classList.add('active');
+      activeTrackCard = card;
+
+      btn.innerHTML = '&#9646;&#9646;';
+      nowPlayingEl.textContent = track.name + ' - ' + track.artist + ' (Instrumental)';
+      previewBar.style.display = '';
+
+    } catch (e) {
+      showToast('Preview failed: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      if (btn.innerHTML === '...') btn.innerHTML = '&#9654;';
+    }
+  }
+
+  function stopPreview() {
+    if (previewAudio) {
+      previewAudio.pause();
+      previewAudio.src = '';
+      previewAudio = null;
+    }
+    currentPreviewId = null;
+    previewBar.style.display = 'none';
+    if (activeTrackCard) {
+      activeTrackCard.classList.remove('active');
+      const btn = activeTrackCard.querySelector('.preview-btn');
+      if (btn) btn.innerHTML = '&#9654;';
+      activeTrackCard = null;
+    }
+  }
+
+  // ── Get Instrumental (with caching) ────────────────────────────────
+  async function getInstrumental(track) {
+    const key = track.name + '|' + track.artist;
+
+    if (cachedInstrumentals[key]) {
+      return cachedInstrumentals[key];
+    }
+
+    showToast('Finding instrumental...', 'info');
+
+    const resp = await fetch(apiUrl + '/prepare-instrumental', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        song_name: track.name,
+        artist: track.artist,
+        duration_ms: track.duration_ms || null
+      })
+    });
+
+    return new Promise((resolve, reject) => {
+      readSSE(resp, (event) => {
+        if (event.error) {
+          reject(new Error(event.error));
+          return;
+        }
+        if (event.done) {
+          const data = {
+            id: event.instrumental_id,
+            durMs: event.duration_ms
+          };
+          cachedInstrumentals[key] = data;
+          hideToast();
+          resolve(data);
+        }
+      }).catch(reject);
+    });
+  }
+
+  // ── Add to Timeline ────────────────────────────────────────────────
+  async function addToTimeline(track, card, btn) {
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    try {
+      // Get instrumental
+      const instrData = await getInstrumental(track);
+
+      showToast('Downloading instrumental...', 'info');
+
+      // Download to disk
+      const projFolder = await evalJSX('getProjectFolder');
+      const audioDir = path.join(projFolder, 'Resonance Audio');
+      if (!fs.existsSync(audioDir)) {
+        fs.mkdirSync(audioDir, { recursive: true });
+      }
+
+      const safeName = (track.name + ' - ' + track.artist)
+        .replace(/[^a-zA-Z0-9_\- ]/g, '')
+        .substring(0, 60);
+      const localPath = path.join(audioDir, safeName + '_instrumental.mp3');
+
+      // Download from backend
+      const resp = await fetch(apiUrl + '/serve-instrumental/' + instrData.id);
+      const arrayBuf = await resp.arrayBuffer();
+      fs.writeFileSync(localPath, Buffer.from(arrayBuf));
+
+      showToast('Adding to timeline...', 'info');
+
+      // Import and place via ExtendScript
+      const result = await evalJSX('importAndPlaceAudio', localPath, 0, -1);
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      showToast('Added "' + track.name + '" to ' + result.trackName, 'success');
+      btn.textContent = '&#10003;';
+      btn.style.background = 'var(--success)';
+
+    } catch (e) {
+      showToast('Failed: ' + e.message, 'error');
+      btn.textContent = '+';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ── Reroll ─────────────────────────────────────────────────────────
+  async function rerollTracks() {
+    if (!lastTranscript) return;
+    const origHTML = rerollBtn.innerHTML;
+    rerollBtn.disabled = true;
+    rerollBtn.textContent = 'Finding...';
+
+    try {
+      const resp = await fetch(apiUrl + '/reroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcript: lastTranscript,
+          duration: lastDuration,
+          exclude: [...excludedTracks]
+        })
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Reroll failed');
+
+      stopPreview();
+      renderTracks(data.tracks);
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally {
+      rerollBtn.disabled = false;
+      rerollBtn.innerHTML = origHTML;
+    }
+  }
+
+  // ── Reset ──────────────────────────────────────────────────────────
+  function resetResults() {
+    stopPreview();
+    resultsSection.style.display = 'none';
+    progressSection.style.display = 'none';
+    lastTranscript = '';
+    lastDuration = null;
+    lastTracks = [];
+    excludedTracks = new Set();
+    cachedInstrumentals = {};
+  }
+
+  // ── UI Helpers ─────────────────────────────────────────────────────
+  function updateProgress(pct, msg) {
+    progressFill.style.width = pct + '%';
+    progressText.textContent = msg;
+  }
+
+  function formatDuration(seconds) {
+    if (!seconds || seconds <= 0) return '0:00';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return m + ':' + String(s).padStart(2, '0');
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  let toastTimer = null;
+
+  function showToast(msg, type) {
+    clearTimeout(toastTimer);
+    toastEl.textContent = msg;
+    toastEl.className = 'toast ' + (type || 'info');
+    requestAnimationFrame(() => {
+      toastEl.classList.add('visible');
+    });
+    if (type !== 'info') {
+      toastTimer = setTimeout(hideToast, 4000);
+    }
+  }
+
+  function hideToast() {
+    toastEl.classList.remove('visible');
+  }
+
+  // ── Start ──────────────────────────────────────────────────────────
+  init();
+  </script>
+</body>
+</html>

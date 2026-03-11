@@ -63,6 +63,7 @@ def recommend(track_suggestions):
                 "album_art":   images[0]["url"] if images else None,
                 "url":         t["external_urls"].get("spotify", ""),
                 "uri":         t["uri"],
+                "preview_url": t.get("preview_url"),
                 "genre":       genre,
                 "reason":      suggestion.get("reason", ""),
                 "duration_ms": t.get("duration_ms", 0),
