@@ -10,6 +10,23 @@ import subprocess
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 EXPORT_DIR = os.path.join(os.path.dirname(__file__), "exports")
+
+# yt-dlp settings to bypass YouTube bot detection on server IPs
+_YT_DLP_BYPASS = {
+    "extractor_args": {
+        "youtube": {
+            "player_client": ["mweb", "android"],
+            "player_skip": ["webpage", "configs"],
+        },
+    },
+    "http_headers": {
+        "User-Agent": (
+            "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/131.0.0.0 Mobile Safari/537.36"
+        ),
+    },
+}
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(EXPORT_DIR, exist_ok=True)
 
@@ -83,14 +100,7 @@ def _download_entry(entry):
         }],
         "quiet": True,
         "no_warnings": True,
-        "extractor_args": {"youtube": {"player_client": ["web"]}},
-        "http_headers": {
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/131.0.0.0 Safari/537.36"
-            ),
-        },
+        **_YT_DLP_BYPASS,
     }
 
     import yt_dlp
@@ -146,14 +156,7 @@ def download_instrumental(song_name, artist, duration_ms=None):
             "extract_flat": True,
             "quiet": True,
             "no_warnings": True,
-            "extractor_args": {"youtube": {"player_client": ["web"]}},
-            "http_headers": {
-                "User-Agent": (
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/131.0.0.0 Safari/537.36"
-                ),
-            },
+            **_YT_DLP_BYPASS,
         }
         with yt_dlp.YoutubeDL(search_opts) as ydl:
             try:

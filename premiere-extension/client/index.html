@@ -469,7 +469,6 @@
       border-radius: var(--radius-sm);
       font-size: 11px;
       font-weight: 600;
-      text-align: center;
       z-index: 1000;
       opacity: 0;
       transform: translateY(10px);
@@ -480,10 +479,11 @@
     .toast.visible {
       opacity: 1;
       transform: translateY(0);
+      pointer-events: auto;
     }
 
     .toast.error {
-      background: rgba(239,68,68,0.9);
+      background: rgba(239,68,68,0.95);
       color: white;
     }
 
@@ -495,6 +495,36 @@
     .toast.info {
       background: rgba(139,92,246,0.9);
       color: white;
+    }
+
+    .toast-msg {
+      text-align: left;
+      word-break: break-word;
+      max-height: 120px;
+      overflow-y: auto;
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    .toast-actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .toast-actions button {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .toast-actions button:hover {
+      background: rgba(255,255,255,0.35);
     }
 
     /* ── Analyze Another ───────────────────── */
@@ -1210,18 +1240,47 @@
 
   function showToast(msg, type) {
     clearTimeout(toastTimer);
-    toastEl.textContent = msg;
+    if (type === 'error') {
+      // Persistent error with copy + close buttons
+      toastEl.innerHTML =
+        '<div class="toast-msg">' + escHtml(msg) + '</div>' +
+        '<div class="toast-actions">' +
+          '<button onclick="copyToast()">Copy</button>' +
+          '<button onclick="hideToast()">Close</button>' +
+        '</div>';
+    } else {
+      toastEl.innerHTML = '<div style="text-align:center">' + escHtml(msg) + '</div>';
+    }
     toastEl.className = 'toast ' + (type || 'info');
     requestAnimationFrame(() => {
       toastEl.classList.add('visible');
     });
-    if (type !== 'info') {
+    if (type === 'success') {
       toastTimer = setTimeout(hideToast, 4000);
+    } else if (type === 'info') {
+      // Info stays until replaced
     }
+    // Errors stay until manually closed
   }
 
   function hideToast() {
     toastEl.classList.remove('visible');
+  }
+
+  function copyToast() {
+    const msgEl = toastEl.querySelector('.toast-msg');
+    if (msgEl) {
+      const text = msgEl.textContent;
+      // CEP clipboard via textarea trick
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      const copyBtn = toastEl.querySelector('.toast-actions button');
+      if (copyBtn) { copyBtn.textContent = 'Copied!'; setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500); }
+    }
   }
 
   // ── Start ──────────────────────────────────────────────────────────
