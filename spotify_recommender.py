@@ -71,15 +71,23 @@ def get_trending_pool():
     except Exception as e:
         print(f"TikTok trending failed: {e}")
 
-    # 2) Spotify trending playlists — fill out the pool
+    # 2) Spotify search-based trending — uses client credentials (no user auth)
+    _TRENDING_QUERIES = [
+        "year:2025 2026",
+        "tag:new",
+        "genre:pop",
+        "genre:hip-hop",
+        "genre:r&b",
+        "genre:indie",
+        "genre:electronic",
+        "genre:latin",
+    ]
     try:
         sp = _get_spotify()
-        retry_done = False
-        for playlist_id in _TRENDING_PLAYLISTS:
+        for query in _TRENDING_QUERIES:
             try:
-                results = sp.playlist_tracks(playlist_id, limit=30)
-                for item in results.get("items", []):
-                    track = item.get("track")
+                results = sp.search(q=query, type="track", limit=20)
+                for track in results.get("tracks", {}).get("items", []):
                     if not track or not track.get("id"):
                         continue
                     name = track["name"]
@@ -88,29 +96,8 @@ def get_trending_pool():
                     if key not in seen:
                         seen.add(key)
                         pool.append({"name": name, "artist": artist})
-            except spotipy.exceptions.SpotifyException as e:
-                if e.http_status == 401 and not retry_done:
-                    retry_done = True
-                    _sp = None
-                    sp = _get_spotify()
-                    try:
-                        results = sp.playlist_tracks(playlist_id, limit=30)
-                        for item in results.get("items", []):
-                            track = item.get("track")
-                            if not track or not track.get("id"):
-                                continue
-                            name = track["name"]
-                            artist = ", ".join(a["name"] for a in track.get("artists", []))
-                            key = (name.lower(), artist.lower())
-                            if key not in seen:
-                                seen.add(key)
-                                pool.append({"name": name, "artist": artist})
-                    except Exception as e2:
-                        print(f"Trending playlist {playlist_id} retry failed: {e2}")
-                else:
-                    print(f"Trending playlist {playlist_id} failed: {e}")
             except Exception as e:
-                print(f"Trending playlist {playlist_id} failed: {e}")
+                print(f"Trending search '{query}' failed: {e}")
     except ValueError:
         pass
 

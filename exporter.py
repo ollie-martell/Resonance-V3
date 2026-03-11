@@ -83,6 +83,14 @@ def _download_entry(entry):
         }],
         "quiet": True,
         "no_warnings": True,
+        "extractor_args": {"youtube": {"player_client": ["web"]}},
+        "http_headers": {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/131.0.0.0 Safari/537.36"
+            ),
+        },
     }
 
     import yt_dlp
@@ -138,6 +146,14 @@ def download_instrumental(song_name, artist, duration_ms=None):
             "extract_flat": True,
             "quiet": True,
             "no_warnings": True,
+            "extractor_args": {"youtube": {"player_client": ["web"]}},
+            "http_headers": {
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/131.0.0.0 Safari/537.36"
+                ),
+            },
         }
         with yt_dlp.YoutubeDL(search_opts) as ydl:
             try:
