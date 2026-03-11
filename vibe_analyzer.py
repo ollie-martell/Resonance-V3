@@ -120,10 +120,12 @@ def _parse_response(raw):
     section = "picks"  # default section
 
     for line in lines:
-        lower = line.lower()
+        # Strip markdown bold/italic markers
+        clean = re.sub(r"\*{1,2}(.*?)\*{1,2}", r"\1", line).strip()
+        lower = clean.lower()
 
         if lower.startswith("vibe read:"):
-            vibe_read = line[len("vibe read:"):].strip()
+            vibe_read = clean[len("vibe read:"):].strip()
         elif lower in ("picks:", "picks", "backup picks:", "backup picks"):
             section = "picks"
         elif lower in ("trending picks:", "trending picks"):
