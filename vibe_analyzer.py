@@ -1,5 +1,6 @@
 import os
 import re
+import random
 import anthropic
 
 SYSTEM_PROMPT = """Background Music Selector for Instagram/TikTok Reels
@@ -74,20 +75,25 @@ Transcript:
         user_message += f"\n\nDo not suggest any of these previously shown tracks: {', '.join(exclude)}"
 
     if trending_pool:
+        # Send a random sample of 50 to keep context manageable
+        sample = trending_pool if len(trending_pool) <= 50 else random.sample(trending_pool, 50)
         trending_lines = "\n".join(
-            f"- {t['name']} — {t['artist']}" for t in trending_pool
+            f"- {t['name']} — {t['artist']}" for t in sample
         )
-        user_message += f"\n\nCurrently trending songs:\n{trending_lines}"
+        user_message += f"\n\nCurrently trending songs ({len(sample)} of {len(trending_pool)} available):\n{trending_lines}"
 
     response = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=1024,
+        max_tokens=2048,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_message}],
     )
 
     raw = response.content[0].text.strip()
-    return _parse_response(raw)
+    print(f"=== CLAUDE RAW RESPONSE ===\n{raw}\n=== END ===")
+    result = _parse_response(raw)
+    print(f"Parsed: {len(result['trending_suggestions'])} trending, {len(result['track_suggestions'])} backup")
+    return result
 
 
 def _parse_track_line(line):
