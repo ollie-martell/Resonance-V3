@@ -1039,7 +1039,7 @@
         <div class="results-sidebar">
           <div class="card-glass">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
-              <span class="label-micro" style="margin-bottom: 0;">Suggested Tracks</span>
+              <span class="label-micro" style="margin-bottom: 0;">Curated Picks</span>
               <button id="rerollBtn" class="btn btn-glass" style="padding: 8px 16px; font-size: 11px;">&#8635;&nbsp;&nbsp;5 more</button>
             </div>
             <!-- Export trigger button -->
@@ -1047,6 +1047,13 @@
               <button id="exportTriggerBtn" class="btn" style="width: 100%;">Export with Instrumental</button>
             </div>
             <div id="tracksGrid"></div>
+          </div>
+
+          <div id="trendingCard" class="card-glass" style="margin-top: 20px; display: none;">
+            <div style="margin-bottom: 20px;">
+              <span class="label-micro" style="margin-bottom: 0; color: #22c55e;">Trending Now</span>
+            </div>
+            <div id="trendingGrid"></div>
           </div>
         </div>
       </div>
@@ -1491,6 +1498,7 @@
         excludedTracks = new Set();
 
         renderTracks(data.tracks);
+        renderTrending(data.trending_tracks || []);
         showScreen('results');
       }
 
@@ -1608,6 +1616,111 @@
         });
       }
 
+      // ── Render trending tracks (same card style, separate grid) ───
+      function renderTrending(tracks) {
+        const trendingCard = document.getElementById('trendingCard');
+        const trendingGrid = document.getElementById('trendingGrid');
+        if (!tracks || tracks.length === 0) {
+          trendingCard.style.display = 'none';
+          return;
+        }
+        trendingCard.style.display = '';
+        tracks.forEach(t => excludedTracks.add(t.name));
+        trendingGrid.innerHTML = '';
+
+        for (const track of tracks) {
+          const art = track.album_art || '';
+          const card = document.createElement('div');
+          card.className = 'track-card';
+          card.innerHTML = `
+            ${art ? `<img src="${escHtml(art)}" class="track-art" alt="Album art">` : '<div class="track-art"></div>'}
+            <div class="track-main">
+              <span class="name">${escHtml(track.name)}</span>
+              <span class="artist">${escHtml(track.artist)}</span>
+              <span class="genre">${escHtml(track.genre || '')}</span>
+              <p class="reason">${escHtml(track.reason || '')}</p>
+            </div>
+            <button class="play-btn" data-uri="${escHtml(track.uri)}" data-duration="${track.duration_ms || 0}" data-name="${encodeURIComponent(track.name)}" data-artist="${encodeURIComponent(track.artist)}">&#9654;</button>
+          `;
+          trendingGrid.appendChild(card);
+        }
+
+        // Wire up play buttons (same logic as curated)
+        trendingGrid.querySelectorAll('.play-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!token) { showError('Connect Spotify to play songs.'); return; }
+            if (!spotifyDeviceId) {
+              if (!spotifyPlayer) return;
+              btn.disabled = true;
+              spotifyPlayer.connect();
+              for (let i = 0; i < 15 && !spotifyDeviceId; i++) {
+                await new Promise(r => setTimeout(r, 200));
+              }
+              btn.disabled = false;
+              if (!spotifyDeviceId) {
+                showError('Spotify connection lost — please refresh the page.');
+                return;
+              }
+            }
+
+            const uri  = btn.dataset.uri;
+            const card = btn.closest('.track-card');
+
+            if (uri === currentUri) {
+              syncingPlayback = true;
+              const state = await spotifyPlayer.getCurrentState().catch(() => null);
+              const paused = !state || state.paused;
+              try {
+                if (paused) { await spotifyPlayer.resume(); await videoEl.play(); startSeekPoll(); }
+                else { await spotifyPlayer.pause(); videoEl.pause(); }
+              } catch {}
+              syncingPlayback = false;
+            } else {
+              resetExportPanel();
+              if (currentPlayBtn) currentPlayBtn.innerHTML = '&#9654;';
+              if (currentCard) currentCard.classList.remove('playing');
+              stopSeekPoll();
+
+              currentUri     = uri;
+              currentPlayBtn = btn;
+              currentCard    = card;
+              songDurationMs = parseInt(btn.dataset.duration) || 0;
+              currentSongName   = decodeURIComponent(btn.dataset.name || '');
+              currentSongArtist = decodeURIComponent(btn.dataset.artist || '');
+              btn.innerHTML  = '&#9646;&#9646;';
+              card.classList.add('playing');
+              exportArea.style.display = 'block';
+              songScrubber.value = 0;
+              songTime.textContent = '0:00 / ' + formatTime(songDurationMs);
+
+              const now = Math.floor(Date.now() / 1000);
+              if (tokenExpiry > 0 && now >= tokenExpiry) await refreshToken();
+
+              const playResp = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uris: [uri] }),
+              });
+
+              if (!playResp.ok) {
+                const err = await playResp.json().catch(() => ({}));
+                showError('Spotify: ' + (err.error?.message || 'Playback failed.'));
+                btn.innerHTML = '&#9654;'; card.classList.remove('playing');
+                currentUri = null; currentPlayBtn = null; currentCard = null;
+                return;
+              }
+
+              spotifyPlayer.setVolume(MUSIC_MAX * parseFloat(musicVolSlider.value));
+              syncingPlayback = true;
+              videoEl.currentTime = 0;
+              await videoEl.play().catch(() => {});
+              syncingPlayback = false;
+              startSeekPoll();
+            }
+          });
+        });
+      }
+
       // ── Reroll: real API call ──────────────────────────────────────
       async function rerollTracks() {
         if (!lastTranscript) return;
@@ -1628,6 +1741,7 @@
           const data = await resp.json();
           if (!resp.ok) { showError(data.error || 'Reroll failed.'); return; }
           renderTracks(data.tracks);
+          renderTrending(data.trending_tracks || []);
         } catch {
           showError('Reroll failed — is the server running?');
         } finally {

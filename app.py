@@ -12,7 +12,7 @@ import requests as http
 from dotenv import load_dotenv
 from transcriber import transcribe
 from vibe_analyzer import analyze_vibe
-from spotify_recommender import recommend
+from spotify_recommender import recommend, get_trending_pool
 from exporter import download_instrumental, mix_and_export, get_audio_duration_ms, EXPORT_DIR
 
 load_dotenv()
@@ -157,9 +157,11 @@ def reroll():
     if not transcript.strip():
         return jsonify({"error": "No transcript provided"}), 400
     try:
-        vibe = analyze_vibe(transcript, duration, exclude=exclude)
+        trending_pool = get_trending_pool()
+        vibe = analyze_vibe(transcript, duration, exclude=exclude, trending_pool=trending_pool)
         tracks = recommend(vibe["track_suggestions"])
-        return jsonify({"tracks": tracks})
+        trending_tracks = recommend(vibe.get("trending_suggestions", []))
+        return jsonify({"tracks": tracks, "trending_tracks": trending_tracks})
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
@@ -195,13 +197,22 @@ def analyze():
                 yield _sse({"error": "No speech detected in the video"})
                 return
 
+            yield _sse({"progress": 35, "message": "Fetching trending songs…"})
+
+            trending_pool = get_trending_pool()
+
             yield _sse({"progress": 45, "message": "Analyzing vibe…"})
 
-            vibe = analyze_vibe(transcript["text"], transcript.get("duration"))
+            vibe = analyze_vibe(
+                transcript["text"],
+                transcript.get("duration"),
+                trending_pool=trending_pool,
+            )
 
             yield _sse({"progress": 78, "message": "Finding matching songs…"})
 
             tracks = recommend(vibe["track_suggestions"])
+            trending_tracks = recommend(vibe.get("trending_suggestions", []))
 
             # Video is kept on disk for export; client calls /cleanup when done
             yield _sse({
@@ -210,6 +221,7 @@ def analyze():
                 "transcript": transcript["text"],
                 "vibe_read": vibe["vibe_read"],
                 "tracks": tracks,
+                "trending_tracks": trending_tracks,
                 "duration": transcript.get("duration"),
                 "video_id": video_id,
             })

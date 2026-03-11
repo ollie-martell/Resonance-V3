@@ -43,19 +43,23 @@ function getSequenceInfo() {
 // ── Find H.264 Export Preset ────────────────────────────────────────────
 
 function findExportPreset() {
-    var h264Uuid = "4028B9D3-3B68-4D4A-B3F0-4EF792F3C4A7";
+    // H.264 codec UUIDs (varies by Adobe version)
+    var h264Uuids = [
+        "4E49434B_48323634",                   // Modern Premiere/AME (2022+)
+        "4028B9D3-3B68-4D4A-B3F0-4EF792F3C4A7" // Legacy AME
+    ];
     var fallback = null;
 
     // Search Adobe Media Encoder and Premiere Pro app bundles
     var appNames = [
-        "Adobe Media Encoder 2026", "Adobe Media Encoder 2025",
-        "Adobe Media Encoder 2024", "Adobe Media Encoder 2023",
-        "Adobe Media Encoder 2022", "Adobe Media Encoder 2021",
-        "Adobe Media Encoder 2020",
         "Adobe Premiere Pro 2026", "Adobe Premiere Pro 2025",
         "Adobe Premiere Pro 2024", "Adobe Premiere Pro 2023",
         "Adobe Premiere Pro 2022", "Adobe Premiere Pro 2021",
-        "Adobe Premiere Pro 2020"
+        "Adobe Premiere Pro 2020",
+        "Adobe Media Encoder 2026", "Adobe Media Encoder 2025",
+        "Adobe Media Encoder 2024", "Adobe Media Encoder 2023",
+        "Adobe Media Encoder 2022", "Adobe Media Encoder 2021",
+        "Adobe Media Encoder 2020"
     ];
 
     for (var i = 0; i < appNames.length; i++) {
@@ -64,25 +68,55 @@ function findExportPreset() {
 
         var bundles = appFolder.getFiles("*.app");
         for (var b = 0; b < bundles.length; b++) {
-            var presetDir = new Folder(
-                bundles[b].fsName + "/Contents/MediaIO/systempresets/" + h264Uuid
-            );
-            if (!presetDir.exists) continue;
+            for (var u = 0; u < h264Uuids.length; u++) {
+                var presetDir = new Folder(
+                    bundles[b].fsName + "/Contents/MediaIO/systempresets/" + h264Uuids[u]
+                );
+                if (!presetDir.exists) continue;
 
-            var presets = presetDir.getFiles("*.epr");
-            for (var p = 0; p < presets.length; p++) {
-                var name = presets[p].name.toLowerCase();
-                // Prefer "Match Source - Adaptive High Bitrate" or similar
-                if (name.indexOf("match source") >= 0 && name.indexOf("high") >= 0) {
-                    return presets[p].fsName;
-                }
-                if (name.indexOf("match source") >= 0 && !fallback) {
-                    fallback = presets[p].fsName;
-                }
-                if (!fallback) {
-                    fallback = presets[p].fsName;
+                var presets = presetDir.getFiles("*.epr");
+                for (var p = 0; p < presets.length; p++) {
+                    var name = presets[p].name.toLowerCase();
+                    // Best: "Match Source - High bitrate"
+                    if (name.indexOf("match source") >= 0 && name.indexOf("high") >= 0) {
+                        return presets[p].fsName;
+                    }
+                    // Good: any "Match Source"
+                    if (name.indexOf("match source") >= 0 && name.indexOf("medium") >= 0 && !fallback) {
+                        fallback = presets[p].fsName;
+                    }
+                    if (name.indexOf("match source") >= 0 && !fallback) {
+                        fallback = presets[p].fsName;
+                    }
+                    // Acceptable: any H.264 preset
+                    if (!fallback) {
+                        fallback = presets[p].fsName;
+                    }
                 }
             }
+
+            // Also search ALL subfolders in systempresets for any .epr with H264/h264 in path
+            if (!fallback) {
+                var sysDir = new Folder(bundles[b].fsName + "/Contents/MediaIO/systempresets");
+                if (sysDir.exists) {
+                    var subDirs = sysDir.getFiles();
+                    for (var sd = 0; sd < subDirs.length; sd++) {
+                        if (!(subDirs[sd] instanceof Folder)) continue;
+                        var subPresets = subDirs[sd].getFiles("*.epr");
+                        for (var sp = 0; sp < subPresets.length; sp++) {
+                            var spName = subPresets[sp].name.toLowerCase();
+                            if (spName.indexOf("match source") >= 0 && spName.indexOf("high") >= 0) {
+                                return subPresets[sp].fsName;
+                            }
+                            if (spName.indexOf("match source") >= 0 && !fallback) {
+                                fallback = subPresets[sp].fsName;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (fallback) return fallback;
         }
     }
 

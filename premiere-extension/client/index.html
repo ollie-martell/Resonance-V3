@@ -565,11 +565,19 @@
 
         <!-- Tracks -->
         <div class="tracks-header">
-          <span class="card-label">Suggested Tracks</span>
+          <span class="card-label">Curated Picks</span>
           <button id="rerollBtn" class="btn btn-glass">&#8635; 5 more</button>
         </div>
 
         <div id="tracksList" class="tracks-list"></div>
+
+        <!-- Trending Tracks -->
+        <div id="trendingSection" style="display:none;">
+          <div class="tracks-header" style="margin-top:12px;">
+            <span class="card-label" style="color:var(--success);">Trending Now</span>
+          </div>
+          <div id="trendingList" class="tracks-list"></div>
+        </div>
 
         <!-- Analyze Another -->
         <div class="reset-row">
@@ -621,6 +629,8 @@
   const resultsSection  = document.getElementById('resultsSection');
   const vibeTextEl      = document.getElementById('vibeText');
   const tracksListEl    = document.getElementById('tracksList');
+  const trendingSection = document.getElementById('trendingSection');
+  const trendingListEl  = document.getElementById('trendingList');
   const rerollBtn       = document.getElementById('rerollBtn');
   const resetBtn        = document.getElementById('resetBtn');
   const previewBar      = document.getElementById('previewBar');
@@ -855,6 +865,7 @@
 
     vibeTextEl.textContent = data.vibe_read || '';
     renderTracks(data.tracks);
+    renderTrending(data.trending_tracks || []);
   }
 
   // ── Render Track Cards ─────────────────────────────────────────────
@@ -895,6 +906,48 @@
       addBtn.addEventListener('click', () => addToTimeline(track, card, addBtn));
 
       tracksListEl.appendChild(card);
+    }
+  }
+
+  // ── Render Trending Tracks ──────────────────────────────────────────
+  function renderTrending(tracks) {
+    if (!tracks || tracks.length === 0) {
+      trendingSection.style.display = 'none';
+      return;
+    }
+    trendingSection.style.display = '';
+    trendingListEl.innerHTML = '';
+
+    for (const track of tracks) {
+      const card = document.createElement('div');
+      card.className = 'track-card';
+      card.dataset.name = track.name;
+      card.dataset.artist = track.artist;
+      card.dataset.durationMs = track.duration_ms || 0;
+
+      const art = track.album_art
+        ? '<img src="' + escHtml(track.album_art) + '" class="track-art" alt="">'
+        : '<div class="track-art"></div>';
+
+      card.innerHTML =
+        art +
+        '<div class="track-info">' +
+          '<div class="track-name">' + escHtml(track.name) + '</div>' +
+          '<div class="track-artist">' + escHtml(track.artist) + '</div>' +
+          (track.genre ? '<div class="track-genre">' + escHtml(track.genre) + '</div>' : '') +
+          (track.reason ? '<div class="track-reason">' + escHtml(track.reason) + '</div>' : '') +
+        '</div>' +
+        '<div class="track-actions">' +
+          '<button class="track-btn preview-btn" title="Preview Instrumental">&#9654;</button>' +
+          '<button class="track-btn add-btn" title="Add to Timeline">+</button>' +
+        '</div>';
+
+      const previewBtn = card.querySelector('.preview-btn');
+      const addBtn = card.querySelector('.add-btn');
+      previewBtn.addEventListener('click', () => previewInstrumental(track, card, previewBtn));
+      addBtn.addEventListener('click', () => addToTimeline(track, card, addBtn));
+
+      trendingListEl.appendChild(card);
     }
   }
 
@@ -1072,6 +1125,7 @@
 
       stopPreview();
       renderTracks(data.tracks);
+      renderTrending(data.trending_tracks || []);
     } catch (e) {
       showToast(e.message, 'error');
     } finally {

@@ -1,8 +1,22 @@
 import os
+import time
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
 _sp = None
+
+# Trending playlists to pull from
+_TRENDING_PLAYLISTS = [
+    "37i9dQZF1DXcBWIGoYBM5M",  # Today's Top Hits
+    "37i9dQZF1DX0kbJZpiYdZl",  # Hot Hits USA
+    "37i9dQZEVXbLiRSasKsNU9",  # Viral 50 – Global
+    "37i9dQZF1DWcJqBMXTBTHW",  # New Music Friday
+    "37i9dQZF1DX2L0iB23Enbq",  # Viral Hits
+]
+
+# Cache: { "pool": [...], "fetched_at": timestamp }
+_trending_cache = {"pool": [], "fetched_at": 0}
+_CACHE_TTL = 3600  # refresh every hour
 
 
 def _get_spotify():
@@ -19,6 +33,57 @@ def _get_spotify():
             )
         )
     return _sp
+
+
+def get_trending_pool():
+    """Fetch trending tracks from TikTok Creative Center + Spotify playlists.
+
+    TikTok songs come first (actual social media trending), then Spotify
+    playlist tracks fill out the pool. Cached for 1 hour.
+    """
+    now = time.time()
+    if _trending_cache["pool"] and (now - _trending_cache["fetched_at"]) < _CACHE_TTL:
+        return _trending_cache["pool"]
+
+    pool = []
+    seen = set()
+
+    # 1) TikTok Creative Center — real social media trending audio
+    try:
+        from trending_scraper import get_tiktok_trending
+        for song in get_tiktok_trending():
+            key = (song["name"].lower(), song["artist"].lower())
+            if key not in seen:
+                seen.add(key)
+                pool.append(song)
+    except Exception as e:
+        print(f"TikTok trending failed: {e}")
+
+    # 2) Spotify trending playlists — fill out the pool
+    try:
+        sp = _get_spotify()
+        for playlist_id in _TRENDING_PLAYLISTS:
+            try:
+                results = sp.playlist_tracks(playlist_id, limit=15)
+                for item in results.get("items", []):
+                    track = item.get("track")
+                    if not track or not track.get("id"):
+                        continue
+                    name = track["name"]
+                    artist = ", ".join(a["name"] for a in track.get("artists", []))
+                    key = (name.lower(), artist.lower())
+                    if key not in seen:
+                        seen.add(key)
+                        pool.append({"name": name, "artist": artist})
+            except Exception as e:
+                print(f"Trending playlist {playlist_id} failed: {e}")
+    except ValueError:
+        pass
+
+    _trending_cache["pool"] = pool
+    _trending_cache["fetched_at"] = now
+    print(f"Trending pool: {len(pool)} songs ({len(pool)} unique)")
+    return pool
 
 
 def recommend(track_suggestions):

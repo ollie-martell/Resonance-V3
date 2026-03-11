@@ -29,11 +29,20 @@ Output Format
 Return your response in this exact format:
 Vibe read: [One conversational sentence — your read on the video's energy and what music it needs.]
 
+Picks:
 [Song] — [Artist] — [Genre] — [One line reason it fits]
 [Song] — [Artist] — [Genre] — [One line reason it fits]
 [Song] — [Artist] — [Genre] — [One line reason it fits]
 [Song] — [Artist] — [Genre] — [One line reason it fits]
-[Song] — [Artist] — [Genre] — [One line reason it fits]"""
+[Song] — [Artist] — [Genre] — [One line reason it fits]
+
+If a "Currently trending" list is provided below the transcript, also select up to 5 songs from THAT list that would work as background music for this video. Only pick songs that genuinely fit — if fewer than 5 fit, that's fine. Skip any that don't match the vibe.
+
+Trending picks:
+[Song] — [Artist] — [Genre] — [One line reason it fits]
+(only from the trending list, only songs that actually fit)
+
+If no trending list is provided, omit the "Trending picks:" section entirely."""
 
 _client = None
 
@@ -48,7 +57,7 @@ def _get_client():
     return _client
 
 
-def analyze_vibe(text, duration=None, exclude=None):
+def analyze_vibe(text, duration=None, exclude=None, trending_pool=None):
     client = _get_client()
 
     word_count = len(text.split())
@@ -65,6 +74,12 @@ Transcript:
     if exclude:
         user_message += f"\n\nDo not suggest any of these previously shown tracks: {', '.join(exclude)}"
 
+    if trending_pool:
+        trending_lines = "\n".join(
+            f"- {t['name']} — {t['artist']}" for t in trending_pool
+        )
+        user_message += f"\n\nCurrently trending songs:\n{trending_lines}"
+
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1024,
@@ -76,27 +91,46 @@ Transcript:
     return _parse_response(raw)
 
 
+def _parse_track_line(line):
+    """Parse a single track line: Song — Artist — Genre — Reason"""
+    parts = re.split(r"\s*[—–]\s*", line, maxsplit=3)
+    if len(parts) >= 2 and parts[0]:
+        return {
+            "song":   parts[0].strip(),
+            "artist": parts[1].strip() if len(parts) > 1 else "",
+            "genre":  parts[2].strip() if len(parts) > 2 else "",
+            "reason": parts[3].strip() if len(parts) > 3 else "",
+        }
+    return None
+
+
 def _parse_response(raw):
     lines = [l.strip() for l in raw.split("\n") if l.strip()]
 
     vibe_read = ""
-    tracks = []
+    picks = []
+    trending_picks = []
+    section = "picks"  # default section
 
     for line in lines:
-        if line.lower().startswith("vibe read:"):
+        lower = line.lower()
+
+        if lower.startswith("vibe read:"):
             vibe_read = line[len("vibe read:"):].strip()
+        elif lower in ("picks:", "picks"):
+            section = "picks"
+        elif lower in ("trending picks:", "trending picks"):
+            section = "trending"
         else:
-            # Split on em dash or en dash only (not hyphens in names)
-            parts = re.split(r"\s*[—–]\s*", line, maxsplit=3)
-            if len(parts) >= 2 and parts[0]:
-                tracks.append({
-                    "song":   parts[0].strip(),
-                    "artist": parts[1].strip() if len(parts) > 1 else "",
-                    "genre":  parts[2].strip() if len(parts) > 2 else "",
-                    "reason": parts[3].strip() if len(parts) > 3 else "",
-                })
+            track = _parse_track_line(line)
+            if track:
+                if section == "trending":
+                    trending_picks.append(track)
+                else:
+                    picks.append(track)
 
     return {
         "vibe_read": vibe_read,
-        "track_suggestions": tracks[:5],
+        "track_suggestions": picks[:5],
+        "trending_suggestions": trending_picks[:5],
     }
