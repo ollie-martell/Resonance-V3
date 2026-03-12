@@ -740,7 +740,9 @@
 
     try {
       // Step 1: Export the sequence
-      const tempDir = await evalJSX('getTempFolder');
+      // Use ~/.resonance/uploads/ — same dir the server uses, avoids TemporaryItems permission issues
+      const tempDir = path.join(os.homedir(), '.resonance', 'uploads');
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
       const outputPath = path.join(tempDir, 'resonance_export_' + Date.now() + '.mp4');
 
       updateProgress(5, 'Exporting from timeline...');
