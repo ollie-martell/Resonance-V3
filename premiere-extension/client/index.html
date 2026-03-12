@@ -762,17 +762,13 @@
         await waitForFile(outputPath, 300000);
       }
 
-      updateProgress(20, 'Uploading for analysis...');
+      updateProgress(20, 'Sending to analysis...');
 
-      // Step 2: Upload to backend
-      const fileBuffer = fs.readFileSync(outputPath);
-      const blob = new Blob([fileBuffer], { type: 'video/mp4' });
-      const formData = new FormData();
-      formData.append('video', blob, 'sequence_export.mp4');
-
-      const resp = await fetch(apiUrl + '/analyze', {
+      // Step 2: Send file path to local server (no upload needed — same machine)
+      const resp = await fetch(apiUrl + '/analyze-path', {
         method: 'POST',
-        body: formData
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ video_path: outputPath })
       });
 
       if (!resp.ok) {
