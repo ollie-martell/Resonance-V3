@@ -208,12 +208,6 @@
       </div>
       <div id="trendingList" class="tracks-list"></div>
 
-      <div class="tracks-header" style="margin-top:12px;">
-        <span class="card-label">More Picks</span>
-        <button id="backupRerollBtn" class="btn btn-glass">&#8635; More</button>
-      </div>
-      <div id="tracksList" class="tracks-list"></div>
-
       <div class="reset-row">
         <button id="resetBtn" class="btn btn-glass" style="width:100%;">Analyze Another</button>
       </div>
@@ -313,7 +307,6 @@ const progressText   = document.getElementById('progressText');
 const resultsSection = document.getElementById('resultsSection');
 const vibeTextEl     = document.getElementById('vibeText');
 const trendingListEl = document.getElementById('trendingList');
-const tracksListEl   = document.getElementById('tracksList');
 const toastEl        = document.getElementById('toast');
 
 // ── Init ──────────────────────────────────────────────────────────────
@@ -327,7 +320,6 @@ function init() {
   apiKeyInput.addEventListener('blur', saveSettings);
   analyzeBtn.addEventListener('click', analyzeTimeline);
   document.getElementById('rerollBtn').addEventListener('click', () => reroll(false));
-  document.getElementById('backupRerollBtn').addEventListener('click', () => reroll(true));
   document.getElementById('resetBtn').addEventListener('click', resetResults);
 
   pollSequenceInfo();
@@ -439,17 +431,35 @@ function httpsGet(urlStr, timeoutMs = 10000) {
 }
 
 // ── Trending pool ─────────────────────────────────────────────────────
+// Apple Music top songs (US) — iTunes RSS, free, no auth, updated daily
+async function fetchAppleMusicTrending() {
+  try {
+    const data = await httpsGet('https://itunes.apple.com/us/rss/topsongs/limit=100/json');
+    return (data.feed?.entry || []).map(e => ({
+      name:      e['im:name']?.label || '',
+      artist:    e['im:artist']?.label || '',
+      album_art: e['im:image']?.[2]?.label || e['im:image']?.[0]?.label || null,
+      duration_ms: 0,
+      source: 'apple',
+    })).filter(t => t.name);
+  } catch(e) { console.log('Apple Music chart failed:', e.message); return []; }
+}
+
+// Deezer global chart — backup/supplemental
 async function fetchDeezerTrending() {
   try {
     const data = await httpsGet('https://api.deezer.com/chart/0/tracks?limit=50');
     return (data.data || []).map(t => ({
-      name: t.title, artist: t.artist?.name || '',
+      name:      t.title,
+      artist:    t.artist?.name || '',
       album_art: t.album?.cover_medium || null,
       duration_ms: (t.duration || 0) * 1000,
+      source: 'deezer',
     }));
   } catch(e) { console.log('Deezer failed:', e.message); return []; }
 }
 
+// TikTok Creative Center trending audio
 async function fetchTikTokTrending() {
   return new Promise(resolve => {
     const options = {
@@ -457,7 +467,8 @@ async function fetchTikTokTrending() {
       path: '/business/creativecenter/inspiration/popular/music/pc/en',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36',
-        'Accept': 'text/html',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en-US,en;q=0.9',
       },
     };
     let html = '';
@@ -468,12 +479,17 @@ async function fetchTikTokTrending() {
           const match = html.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s);
           if (!match) return resolve([]);
           const d = JSON.parse(match[1]);
-          const list = d?.props?.pageProps?.data?.soundList || d?.props?.pageProps?.musicList || [];
+          const list =
+            d?.props?.pageProps?.data?.soundList ||
+            d?.props?.pageProps?.musicList ||
+            d?.props?.pageProps?.data?.music_list ||
+            [];
           resolve(list.map(item => ({
-            name: (item.title || item.musicName || '').trim(),
-            artist: (item.author || item.authorName || '').trim(),
-            album_art: item.coverMedium || null,
+            name:      (item.title || item.musicName || item.music_name || '').trim(),
+            artist:    (item.author || item.authorName || item.author_name || '').trim(),
+            album_art: item.coverMedium || item.cover || null,
             duration_ms: 0,
+            source: 'tiktok',
           })).filter(t => t.name));
         } catch(_) { resolve([]); }
       });
@@ -484,14 +500,20 @@ async function fetchTikTokTrending() {
 }
 
 async function refreshTrendingPool() {
-  const [tiktok, deezer] = await Promise.all([fetchTikTokTrending(), fetchDeezerTrending()]);
+  // Apple Music is primary (US, current), Deezer + TikTok supplement
+  const [apple, deezer, tiktok] = await Promise.all([
+    fetchAppleMusicTrending(),
+    fetchDeezerTrending(),
+    fetchTikTokTrending(),
+  ]);
   const seen = new Set();
   const pool = [];
-  for (const t of [...tiktok, ...deezer]) {
+  // Apple first (most relevant for US), then TikTok viral, then Deezer global
+  for (const t of [...apple, ...tiktok, ...deezer]) {
     const key = (t.name + '|' + t.artist).toLowerCase();
     if (!seen.has(key) && t.name) { seen.add(key); pool.push(t); }
   }
-  console.log(`Trending pool: ${pool.length} (${tiktok.length} tiktok + ${deezer.length} deezer)`);
+  console.log(`Trending pool: ${pool.length} (${apple.length} apple, ${tiktok.length} tiktok, ${deezer.length} deezer)`);
   return pool;
 }
 
@@ -531,14 +553,7 @@ Trending picks:
 [Song] — [Artist] — [Genre] — [One line reason]
 [Song] — [Artist] — [Genre] — [One line reason]
 
-Backup picks:
-[Song] — [Artist] — [Genre] — [One line reason]
-[Song] — [Artist] — [Genre] — [One line reason]
-[Song] — [Artist] — [Genre] — [One line reason]
-[Song] — [Artist] — [Genre] — [One line reason]
-[Song] — [Artist] — [Genre] — [One line reason]
-
-Pick exactly 5 trending songs from the provided list. Pick 5 backup songs from your own knowledge.`;
+Pick exactly 5 songs from the trending list provided. Only output the Vibe read and Trending picks sections — nothing else.`;
 
 function callClaude(transcript, duration, pool, exclude) {
   return new Promise((resolve, reject) => {
@@ -717,13 +732,10 @@ async function analyzeTimeline() {
 
     // 7. Track lookup
     updateProgress(85, 'Looking up tracks...');
-    const [trending, backup] = await Promise.all([
-      resolveSuggestions(vibe.trending_suggestions),
-      resolveSuggestions(vibe.track_suggestions),
-    ]);
+    const trending = await resolveSuggestions(vibe.trending_suggestions);
 
     updateProgress(100, 'Done!');
-    showResults({ vibe_read: vibe.vibe_read, trending, tracks: backup });
+    showResults({ vibe_read: vibe.vibe_read, trending });
 
   } catch(e) {
     showToast(e.message, 'error');
@@ -742,7 +754,6 @@ function showResults(data) {
   analyzeBtn.disabled = false;
   vibeTextEl.textContent = data.vibe_read || '';
   renderTrending(data.trending || []);
-  renderTracks(data.tracks || []);
 }
 
 // ── Render tracks ─────────────────────────────────────────────────────
@@ -771,15 +782,10 @@ function renderTrending(tracks) {
   tracks.forEach(t => trendingListEl.appendChild(buildTrackCard(t)));
 }
 
-function renderTracks(tracks) {
-  tracksListEl.innerHTML = '';
-  tracks.forEach(t => tracksListEl.appendChild(buildTrackCard(t)));
-}
-
 // ── Reroll ────────────────────────────────────────────────────────────
-async function reroll(isBackup) {
+async function reroll() {
   if (!lastTranscript) return;
-  const btn = isBackup ? document.getElementById('backupRerollBtn') : document.getElementById('rerollBtn');
+  const btn = document.getElementById('rerollBtn');
   const orig = btn.innerHTML;
   btn.disabled = true;
   btn.textContent = 'Finding...';
@@ -787,13 +793,8 @@ async function reroll(isBackup) {
   try {
     const raw = await callClaude(lastTranscript, lastDuration, trendingPool, [...excludedTracks]);
     const vibe = parseVibeResponse(raw);
-    if (isBackup) {
-      const tracks = await resolveSuggestions(vibe.track_suggestions);
-      renderTracks(tracks);
-    } else {
-      const trending = await resolveSuggestions(vibe.trending_suggestions);
-      renderTrending(trending);
-    }
+    const trending = await resolveSuggestions(vibe.trending_suggestions);
+    renderTrending(trending);
   } catch(e) {
     showToast(e.message, 'error');
   } finally {
