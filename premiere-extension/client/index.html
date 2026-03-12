@@ -401,16 +401,6 @@
       transition: all 0.2s;
     }
 
-    .track-btn.preview-btn {
-      background: white;
-      color: black;
-    }
-
-    .track-btn.preview-btn:hover {
-      transform: scale(1.1);
-      box-shadow: 0 0 12px rgba(255,255,255,0.3);
-    }
-
     .track-btn.add-btn {
       background: var(--success);
       color: white;
@@ -428,36 +418,6 @@
       cursor: not-allowed;
       transform: none !important;
     }
-
-    /* ── Preview Player ────────────────────── */
-    .preview-bar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      background: rgba(0,0,0,0.3);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-    }
-
-    .preview-bar .now-playing {
-      flex: 1;
-      font-size: 11px;
-      color: var(--text-dim);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .preview-bar .stop-btn {
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 14px;
-    }
-
-    .preview-bar .stop-btn:hover { color: var(--text); }
 
     /* ── Toast ──────────────────────────────── */
     .toast {
@@ -587,12 +547,6 @@
           <div id="vibeText" class="vibe-text"></div>
         </div>
 
-        <!-- Preview Player (hidden until playing) -->
-        <div id="previewBar" class="preview-bar" style="display:none;">
-          <span class="now-playing" id="nowPlaying"></span>
-          <button class="stop-btn" id="stopPreview" title="Stop">&#9724;</button>
-        </div>
-
         <!-- Trending Tracks (primary) -->
         <div class="tracks-header">
           <span class="card-label" style="color:var(--success);">Trending Now</span>
@@ -649,9 +603,6 @@
   let excludedTracks  = new Set();
   let poolExhausted   = false;
   let fallbackMode    = false;
-  let previewAudio    = null;
-  let currentPreviewId = null;
-  let activeTrackCard = null;
   let cachedInstrumentals = {}; // { "song-artist": { id, durMs, filePath } }
 
   // ── DOM Refs ───────────────────────────────────────────────────────
@@ -670,9 +621,6 @@
   const trendingListEl  = document.getElementById('trendingList');
   const rerollBtn       = document.getElementById('rerollBtn');
   const resetBtn        = document.getElementById('resetBtn');
-  const previewBar      = document.getElementById('previewBar');
-  const nowPlayingEl    = document.getElementById('nowPlaying');
-  const stopPreviewBtn  = document.getElementById('stopPreview');
   const toastEl         = document.getElementById('toast');
 
   // ── Init ───────────────────────────────────────────────────────────
@@ -692,7 +640,7 @@
       }
     } catch (e) {}
     if (!apiUrl) {
-      apiUrl = 'https://localhost:5001';
+      apiUrl = 'http://127.0.0.1:17532';
     }
     apiUrlInput.value = apiUrl;
   }
@@ -717,7 +665,6 @@
     analyzeBtn.addEventListener('click', analyzeTimeline);
     rerollBtn.addEventListener('click', () => rerollTracks(false));
     resetBtn.addEventListener('click', resetResults);
-    stopPreviewBtn.addEventListener('click', stopPreview);
     document.getElementById('fallbackBtn').addEventListener('click', () => {
       fallbackMode = true;
       rerollTracks(true);
@@ -836,8 +783,8 @@
       // Step 3: Stream SSE results
       await readSSE(resp, (event) => {
         if (event.error) throw new Error(event.error);
-        if (event.message) updateProgress(event.progress || 0, event.message);
-        if (event.done) {
+        if (event._type === 'progress' && event.message) updateProgress(event.progress || 20, event.message);
+        if (event._type === 'result' || event.done) {
           showResults(event);
         }
       });
@@ -865,9 +812,19 @@
       const parts = buffer.split('\n\n');
       buffer = parts.pop();
       for (const part of parts) {
-        if (!part.startsWith('data: ')) continue;
-        const event = JSON.parse(part.slice(6));
-        onEvent(event);
+        if (!part.trim()) continue;
+        let eventType = 'message';
+        let dataStr = '';
+        for (const line of part.split('\n')) {
+          if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+          else if (line.startsWith('data: ')) dataStr = line.slice(6);
+        }
+        if (!dataStr) continue;
+        try {
+          const event = JSON.parse(dataStr);
+          event._type = eventType;
+          onEvent(event);
+        } catch (e) {}
       }
     }
   }
@@ -908,7 +865,7 @@
     fallbackMode   = false;
 
     vibeTextEl.textContent = data.vibe_read || '';
-    renderTrending(data.trending_tracks || []);
+    renderTrending(data.trending_tracks || data.trending || []);
     renderTracks(data.tracks);
     updateExhaustionUI();
   }
@@ -939,15 +896,10 @@
           (track.reason ? '<div class="track-reason">' + escHtml(track.reason) + '</div>' : '') +
         '</div>' +
         '<div class="track-actions">' +
-          '<button class="track-btn preview-btn" title="Preview Instrumental">&#9654;</button>' +
           '<button class="track-btn add-btn" title="Add to Timeline">+</button>' +
         '</div>';
 
-      // Wire up buttons
-      const previewBtn = card.querySelector('.preview-btn');
       const addBtn = card.querySelector('.add-btn');
-
-      previewBtn.addEventListener('click', () => previewInstrumental(track, card, previewBtn));
       addBtn.addEventListener('click', () => addToTimeline(track, card, addBtn));
 
       tracksListEl.appendChild(card);
@@ -980,90 +932,13 @@
           (track.reason ? '<div class="track-reason">' + escHtml(track.reason) + '</div>' : '') +
         '</div>' +
         '<div class="track-actions">' +
-          '<button class="track-btn preview-btn" title="Preview Instrumental">&#9654;</button>' +
           '<button class="track-btn add-btn" title="Add to Timeline">+</button>' +
         '</div>';
 
-      const previewBtn = card.querySelector('.preview-btn');
       const addBtn = card.querySelector('.add-btn');
-      previewBtn.addEventListener('click', () => previewInstrumental(track, card, previewBtn));
       addBtn.addEventListener('click', () => addToTimeline(track, card, addBtn));
 
       trendingListEl.appendChild(card);
-    }
-  }
-
-  // ── Preview Track ─────────────────────────────────────────────────
-  async function previewInstrumental(track, card, btn) {
-    const key = track.name + '|' + track.artist;
-
-    // If already playing this track, toggle
-    if (currentPreviewId === key && previewAudio && !previewAudio.paused) {
-      stopPreview();
-      return;
-    }
-
-    // Stop any current preview
-    stopPreview();
-
-    btn.innerHTML = '&hellip;';
-    btn.disabled = true;
-
-    try {
-      let audioUrl = null;
-      let label = '';
-
-      // 1) Try Spotify preview URL first (instant, no YouTube needed)
-      if (track.preview_url) {
-        audioUrl = track.preview_url;
-        label = track.name + ' - ' + track.artist + ' (Preview)';
-      } else {
-        // 2) Fall back to instrumental from YouTube
-        const instrData = await getInstrumental(track);
-        audioUrl = apiUrl + '/serve-instrumental/' + instrData.id;
-        label = track.name + ' - ' + track.artist + ' (Instrumental)';
-      }
-
-      previewAudio = new Audio(audioUrl);
-      previewAudio.volume = 0.5;
-      currentPreviewId = key;
-
-      previewAudio.addEventListener('ended', () => {
-        stopPreview();
-      });
-
-      await previewAudio.play();
-
-      // Update UI
-      if (activeTrackCard) activeTrackCard.classList.remove('active');
-      card.classList.add('active');
-      activeTrackCard = card;
-
-      btn.innerHTML = '&#9646;&#9646;';
-      nowPlayingEl.textContent = label;
-      previewBar.style.display = '';
-
-    } catch (e) {
-      showToast('Preview failed: ' + e.message, 'error');
-    } finally {
-      btn.disabled = false;
-      if (btn.innerHTML === '&hellip;') btn.innerHTML = '&#9654;';
-    }
-  }
-
-  function stopPreview() {
-    if (previewAudio) {
-      previewAudio.pause();
-      previewAudio.src = '';
-      previewAudio = null;
-    }
-    currentPreviewId = null;
-    previewBar.style.display = 'none';
-    if (activeTrackCard) {
-      activeTrackCard.classList.remove('active');
-      const btn = activeTrackCard.querySelector('.preview-btn');
-      if (btn) btn.innerHTML = '&#9654;';
-      activeTrackCard = null;
     }
   }
 
@@ -1136,7 +1011,7 @@
 
       showToast('Adding to timeline...', 'info');
 
-      // Import and place via ExtendScript
+      // Import and place at playhead position
       const result = await evalJSX('importAndPlaceAudio', localPath, 0, -1);
 
       if (result.error) {
@@ -1178,8 +1053,6 @@
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || 'Reroll failed');
 
-      stopPreview();
-
       if (data.fallback_mode) {
         fallbackMode = true;
         renderTracks(data.tracks);
@@ -1214,7 +1087,6 @@
 
   // ── Reset ──────────────────────────────────────────────────────────
   function resetResults() {
-    stopPreview();
     resultsSection.style.display = 'none';
     progressSection.style.display = 'none';
     lastTranscript = '';
