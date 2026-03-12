@@ -445,20 +445,6 @@ async function fetchAppleMusicTrending() {
   } catch(e) { console.log('Apple Music chart failed:', e.message); return []; }
 }
 
-// Deezer global chart — backup/supplemental
-async function fetchDeezerTrending() {
-  try {
-    const data = await httpsGet('https://api.deezer.com/chart/0/tracks?limit=50');
-    return (data.data || []).map(t => ({
-      name:      t.title,
-      artist:    t.artist?.name || '',
-      album_art: t.album?.cover_medium || null,
-      duration_ms: (t.duration || 0) * 1000,
-      source: 'deezer',
-    }));
-  } catch(e) { console.log('Deezer failed:', e.message); return []; }
-}
-
 // TikTok Creative Center trending audio
 async function fetchTikTokTrending() {
   return new Promise(resolve => {
@@ -500,20 +486,18 @@ async function fetchTikTokTrending() {
 }
 
 async function refreshTrendingPool() {
-  // Apple Music is primary (US, current), Deezer + TikTok supplement
-  const [apple, deezer, tiktok] = await Promise.all([
-    fetchAppleMusicTrending(),
-    fetchDeezerTrending(),
+  // TikTok first (most viral/social), Apple Music fills out the pool
+  const [tiktok, apple] = await Promise.all([
     fetchTikTokTrending(),
+    fetchAppleMusicTrending(),
   ]);
   const seen = new Set();
   const pool = [];
-  // Apple first (most relevant for US), then TikTok viral, then Deezer global
-  for (const t of [...apple, ...tiktok, ...deezer]) {
+  for (const t of [...tiktok, ...apple]) {
     const key = (t.name + '|' + t.artist).toLowerCase();
     if (!seen.has(key) && t.name) { seen.add(key); pool.push(t); }
   }
-  console.log(`Trending pool: ${pool.length} (${apple.length} apple, ${tiktok.length} tiktok, ${deezer.length} deezer)`);
+  console.log(`Trending pool: ${pool.length} (${tiktok.length} tiktok, ${apple.length} apple)`);
   return pool;
 }
 
