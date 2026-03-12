@@ -13,6 +13,13 @@ const CACHE_TTL = 900_000; // 15 minutes in ms
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`Spotify timeout after ${ms}ms`)), ms);
+    promise.then(v => { clearTimeout(t); resolve(v); }, e => { clearTimeout(t); reject(e); });
+  });
+}
+
 const TRENDING_QUERIES = [
   "Drake", "Kendrick Lamar", "Taylor Swift", "SZA",
   "Bad Bunny", "Doja Cat", "Travis Scott", "Billie Eilish",
@@ -154,14 +161,7 @@ async function recommendTracks(suggestions) {
 
     const t = items[0];
     const images = t.album?.images || [];
-    let genre = suggestion.genre || "";
-    if (t.artists?.[0]?.id) {
-      try {
-        const artistData = await sp.getArtist(t.artists[0].id);
-        const genres = artistData.body.genres || [];
-        if (genres.length > 0) genre = genres[0];
-      } catch (_) {}
-    }
+    const genre = suggestion.genre || "";
     return {
       name: t.name,
       artist: t.artists.map((a) => a.name).join(", "),
@@ -184,7 +184,7 @@ async function recommendTracks(suggestions) {
 
 async function searchTrack(sp, query, retries = 2) {
   try {
-    const results = await sp.searchTracks(query, { limit: 1 });
+    const results = await withTimeout(sp.searchTracks(query, { limit: 1 }), 8000);
     return results.body.tracks?.items || [];
   } catch (err) {
     if (err.statusCode === 429 && retries > 0) {
