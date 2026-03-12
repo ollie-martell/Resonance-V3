@@ -139,52 +139,47 @@ async function recommendTracks(suggestions) {
     return [];
   }
 
-  const tracks = [];
-
-  for (const suggestion of suggestions) {
+  async function lookupOne(suggestion) {
     const song = suggestion.song || "";
     const artist = suggestion.artist || "";
-    if (!song) continue;
+    if (!song) return null;
 
     let items = await searchTrack(sp, `track:"${song}" artist:"${artist}"`);
-    if (!items.length) { await sleep(100); items = await searchTrack(sp, `${song} ${artist}`); }
-    // Try swapped (Claude sometimes reverses song/artist)
+    if (!items.length) items = await searchTrack(sp, `${song} ${artist}`);
     if (!items.length && artist) {
-      await sleep(100);
       items = await searchTrack(sp, `track:"${artist}" artist:"${song}"`);
-      if (!items.length) { await sleep(100); items = await searchTrack(sp, `${artist} ${song}`); }
+      if (!items.length) items = await searchTrack(sp, `${artist} ${song}`);
     }
+    if (!items.length) return null;
 
-    if (items.length > 0) {
-      const t = items[0];
-      const images = t.album?.images || [];
-
-      // Get genre from artist data
-      let genre = suggestion.genre || "";
-      if (t.artists?.[0]?.id) {
-        try {
-          const artistData = await sp.getArtist(t.artists[0].id);
-          const genres = artistData.body.genres || [];
-          if (genres.length > 0) genre = genres[0];
-        } catch (_) {}
-      }
-
-      tracks.push({
-        name: t.name,
-        artist: t.artists.map((a) => a.name).join(", "),
-        album: t.album.name,
-        album_art: images[0]?.url || null,
-        url: t.external_urls?.spotify || "",
-        uri: t.uri,
-        preview_url: t.preview_url || null,
-        genre,
-        reason: suggestion.reason || "",
-        duration_ms: t.duration_ms || 0,
-      });
+    const t = items[0];
+    const images = t.album?.images || [];
+    let genre = suggestion.genre || "";
+    if (t.artists?.[0]?.id) {
+      try {
+        const artistData = await sp.getArtist(t.artists[0].id);
+        const genres = artistData.body.genres || [];
+        if (genres.length > 0) genre = genres[0];
+      } catch (_) {}
     }
+    return {
+      name: t.name,
+      artist: t.artists.map((a) => a.name).join(", "),
+      album: t.album.name,
+      album_art: images[0]?.url || null,
+      url: t.external_urls?.spotify || "",
+      uri: t.uri,
+      preview_url: t.preview_url || null,
+      genre,
+      reason: suggestion.reason || "",
+      duration_ms: t.duration_ms || 0,
+    };
   }
 
-  return tracks;
+  const results = await Promise.allSettled(suggestions.map(lookupOne));
+  return results
+    .filter((r) => r.status === "fulfilled" && r.value)
+    .map((r) => r.value);
 }
 
 async function searchTrack(sp, query, retries = 2) {
