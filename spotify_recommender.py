@@ -2,6 +2,7 @@ import os
 import time
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 _sp = None
 
@@ -71,7 +72,7 @@ def get_trending_pool():
     except Exception as e:
         print(f"TikTok trending failed: {e}")
 
-    # 2) Spotify search — the only endpoint that works with client credentials
+    # 2) Spotify search — run all queries in parallel for speed
     _TRENDING_QUERIES = [
         # Current popular artists
         "Drake", "Kendrick Lamar", "Taylor Swift", "SZA",
@@ -93,22 +94,32 @@ def get_trending_pool():
         "cinematic instrumental", "feel good songs",
         "hype music", "emotional songs",
     ]
+
+    def _search_query(query):
+        try:
+            results = _get_spotify().search(q=query, type="track", limit=10)
+            tracks = []
+            for track in results.get("tracks", {}).get("items", []):
+                if not track or not track.get("id"):
+                    continue
+                name = track["name"]
+                artist = ", ".join(a["name"] for a in track.get("artists", []))
+                tracks.append({"name": name, "artist": artist})
+            return tracks
+        except Exception as e:
+            print(f"Trending search '{query}' failed: {e}")
+            return []
+
     try:
-        sp = _get_spotify()
-        for query in _TRENDING_QUERIES:
-            try:
-                results = sp.search(q=query, type="track", limit=10)
-                for track in results.get("tracks", {}).get("items", []):
-                    if not track or not track.get("id"):
-                        continue
-                    name = track["name"]
-                    artist = ", ".join(a["name"] for a in track.get("artists", []))
-                    key = (name.lower(), artist.lower())
+        _get_spotify()  # ensure credentials work before spawning threads
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            futures = {executor.submit(_search_query, q): q for q in _TRENDING_QUERIES}
+            for future in as_completed(futures):
+                for t in future.result():
+                    key = (t["name"].lower(), t["artist"].lower())
                     if key not in seen:
                         seen.add(key)
-                        pool.append({"name": name, "artist": artist})
-            except Exception as e:
-                print(f"Trending search '{query}' failed: {e}")
+                        pool.append(t)
     except ValueError:
         pass
 
