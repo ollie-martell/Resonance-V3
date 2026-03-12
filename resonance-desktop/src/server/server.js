@@ -20,7 +20,7 @@ dotenv.config({ path: path.join(PROJECT_ROOT, ".env") });
 
 const { transcribe } = require("./transcriber");
 const { analyzeVibe } = require("./vibe-analyzer");
-const { getTrendingPool, recommendTracks } = require("./spotify");
+const { getTrendingPool, resolveTrackSuggestions, resolveTrendingTracks } = require("./music");
 const { downloadInstrumental, getAudioDuration } = require("./exporter");
 const { mixAndExport } = require("./exporter");
 
@@ -86,10 +86,12 @@ function startServer(port = 17532) {
         const vibeResult = await analyzeVibe(text, duration, exclude, trendingPool);
         send("progress", { step: "vibe_done", message: "Vibe analysis complete" });
 
-        send("progress", { step: "spotify", message: "Finding tracks on Spotify..." });
-        const trendingTracks = await recommendTracks(vibeResult.trending_suggestions);
-        const backupTracks = await recommendTracks(vibeResult.track_suggestions);
-        send("progress", { step: "spotify_done", message: "Spotify lookup complete" });
+        send("progress", { step: "spotify", message: "Finding matching tracks..." });
+        const [trendingTracks, backupTracks] = await Promise.all([
+          resolveTrendingTracks(vibeResult.trending_suggestions || [], trendingPool),
+          resolveTrackSuggestions(vibeResult.track_suggestions || []),
+        ]);
+        send("progress", { step: "spotify_done", message: "Tracks found!" });
 
         const shownNames = new Set([
           ...exclude,
@@ -140,10 +142,10 @@ function startServer(port = 17532) {
           fallback_mode ? null : trendingPool
         );
 
-        const trendingTracks = fallback_mode
-          ? []
-          : await recommendTracks(vibeResult.trending_suggestions);
-        const backupTracks = await recommendTracks(vibeResult.track_suggestions);
+        const [trendingTracks, backupTracks] = await Promise.all([
+          fallback_mode ? Promise.resolve([]) : resolveTrendingTracks(vibeResult.trending_suggestions || [], trendingPool),
+          resolveTrackSuggestions(vibeResult.track_suggestions || []),
+        ]);
 
         const shownNames = new Set([
           ...exclude,
